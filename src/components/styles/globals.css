@@ -1,0 +1,19 @@
+.dashed-border {
+  border: 4px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+}
+.custom-dashed {
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 0.75rem;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.3) 50%, transparent 50%);
+  background-size: 15px 1px;
+  background-repeat: repeat-x;
+}
+.react-pdf__Page {
+  position: relative;
+  z-index: 1 !important;
+}
+
+.react-pdf__Page__canvas {
+  margin: 0 auto;
+}
