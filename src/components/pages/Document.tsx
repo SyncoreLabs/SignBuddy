@@ -103,11 +103,11 @@ const Document = () => {
                 Create professional documents instantly with our AI-powered document generator
               </p>
               <button 
-                onClick={() => navigate('/documentcreation')}
+                onClick={() => navigate('')}
                 className="bg-white text-black px-2 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-100 transition-colors"
               >
                 <img src={vectorIcon} alt="Vector" className="w-5 h-5" />
-                Get Started
+                Coming Soon
               </button>
             </div>
             <div className="relative overflow-hidden">

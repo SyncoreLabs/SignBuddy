@@ -27,6 +27,8 @@ const AccountSettings = () => {
     const [passwordError, setPasswordError] = useState('');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isGoogleUser, setIsGoogleUser] = useState(false);
+    const [updateMessage, setUpdateMessage] = useState('');
+const [verifyMessage, setVerifyMessage] = useState('');
 
     const [pendingChanges, setPendingChanges] = useState<{
         userName?: string;
@@ -141,7 +143,9 @@ const AccountSettings = () => {
     const handleVerifyOtp = async () => {
         try {
             const token = localStorage.getItem('token');
-            const verifyResponse = await fetch('https://server.signbuddy.in/api/v1/verifyOtp', {
+            
+            // First verify the OTP
+            const verifyResponse = await fetch('https://server.signbuddy.in/api/v1/profile-verify', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -149,12 +153,17 @@ const AccountSettings = () => {
                 },
                 body: JSON.stringify({
                     otp,
-                    token
+                    email: currentUser?.email,
+                    newEmail: pendingChanges?.email
                 })
             });
-            if (!verifyResponse.ok) throw new Error('Invalid OTP');
-
-            // After OTP verification, update profile
+    
+            const verifyData = await verifyResponse.json();
+            if (!verifyResponse.ok) {
+                throw new Error(verifyData.error || 'Invalid OTP');
+            }
+    
+            // After OTP verification, update the profile
             const updateResponse = await fetch('https://server.signbuddy.in/api/v1/me/profile-update', {
                 method: 'POST',
                 headers: {
@@ -162,18 +171,33 @@ const AccountSettings = () => {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    avatar: selectedAvatar,
-                    userName: username,
-                    email: email,
-                    token
+                    userName: pendingChanges?.userName,
+                    email: pendingChanges?.email,
+                    avatar: pendingChanges?.avatar
                 })
             });
-
-            if (!updateResponse.ok) throw new Error('Failed to update profile');
+    
+            const updateData = await updateResponse.json();
+            if (!updateResponse.ok) {
+                throw new Error(updateData.error || 'Failed to update profile');
+            }
+    
+            // Update UI and clean up
+            setCurrentUser(prev => prev ? {
+                ...prev,
+                userName: pendingChanges?.userName || prev.userName,
+                email: pendingChanges?.email || prev.email,
+                avatar: pendingChanges?.avatar || prev.avatar
+            } : null);
+    
             setShowOtpModal(false);
             setOtp('');
-        } catch (error) {
+            setPendingChanges(null);
+            setUpdateMessage('Profile updated successfully');
+    
+        } catch (error: any) {
             console.error('Error:', error);
+            setVerifyMessage(error.message || 'Error verifying OTP');
         }
     };
 
@@ -181,10 +205,10 @@ const AccountSettings = () => {
     const handleSubmit = async () => {
         try {
             const token = localStorage.getItem('token');
-            const hasProfileChanges = username !== currentUser?.userName || email !== currentUser?.email;
-
-            // If only avatar is changed, update directly
-            if (!hasProfileChanges) {
+            const emailChanged = email !== currentUser?.email;
+    
+            // If email is not changed, update profile directly
+            if (!emailChanged) {
                 const updateResponse = await fetch('https://server.signbuddy.in/api/v1/me/profile-update', {
                     method: 'POST',
                     headers: {
@@ -192,28 +216,57 @@ const AccountSettings = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        avatar: selectedAvatar,
                         userName: username,
-                        email: email,
-                        token
+                        email: currentUser?.email,
+                        avatar: selectedAvatar
                     })
                 });
-                if (!updateResponse.ok) throw new Error('Failed to update profile');
+    
+                const data = await updateResponse.json();
+                if (!updateResponse.ok) {
+                    throw new Error(data.error || 'Failed to update profile');
+                }
+    
+                setUpdateMessage('Profile updated successfully');
+                setCurrentUser(prev => prev ? {
+                    ...prev,
+                    userName: username,
+                    avatar: selectedAvatar
+                } : null);
+    
                 return;
             }
-
-            // If username or email changed, send OTP
-            const otpResponse = await fetch('https://server.signbuddy.in/api/v1/sendOtp', {
+    
+            // If email is changed, send OTP first
+            const otpResponse = await fetch('https://server.signbuddy.in/api/v1/profile-verify', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ token })
+                body: JSON.stringify({
+                    email: currentUser?.email,
+                    newEmail: email
+                })
             });
-            if (!otpResponse.ok) throw new Error('Failed to send OTP');
+    
+            const otpData = await otpResponse.json();
+            if (!otpResponse.ok) {
+                throw new Error(otpData.error || 'Failed to send OTP');
+            }
+    
+            // Store pending changes and show OTP modal
+            setPendingChanges({
+                userName: username,
+                email: email,
+                avatar: selectedAvatar
+            });
             setShowOtpModal(true);
-        } catch (error) {
+            setUpdateMessage('OTP sent to your email');
+    
+        } catch (error: any) {
             console.error('Error:', error);
+            setUpdateMessage(error.message || 'Error updating profile');
         }
     };
 
@@ -543,6 +596,17 @@ const AccountSettings = () => {
                     </div>
                 </div>
             )}
+            {updateMessage && (
+    <div className="mt-4 p-4 bg-green-500/10 text-green-500 rounded-lg">
+        {updateMessage}
+    </div>
+)}
+
+{verifyMessage && (
+    <div className="mt-4 p-4 bg-red-500/10 text-red-500 rounded-lg">
+        {verifyMessage}
+    </div>
+)}
         </div >
     );
 };
