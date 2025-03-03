@@ -168,11 +168,20 @@ function App() {
           <Layout showNavbar={true} showFooter={true} isAuthenticated={true}><EmailComposePage /></Layout>
         </ProtectedRoute>
       } />
-      <Route path="/sign-document" element={
-        <ProtectedRoute>
-          <Layout showNavbar={false} showFooter={false} isAuthenticated={true}><DocumentSigning /></Layout>
-        </ProtectedRoute>
-      } />
+      <Route
+        path="/sign/agreements/:id"
+        element={
+          <ProtectedRoute>
+            <Layout
+              showNavbar={false}
+              showFooter={false}
+              isAuthenticated={true}
+            >
+              <DocumentSigning />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/email-success" element={
         <ProtectedRoute>
           <Layout showNavbar={true} showFooter={true} isAuthenticated={true}><EmailSuccessPage /></Layout>

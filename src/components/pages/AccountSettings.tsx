@@ -527,7 +527,7 @@ const AccountSettings = () => {
             </div>
             {showOtpModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-[#111] rounded-lg w-full max-w-[500px] p-6 sm:p-8 relative">
+                    <div className="bg-[#111] rounded-lg w-full max-w-[600px] p-6 sm:p-8 relative">
                         <button
                             onClick={() => setShowOtpModal(false)}
                             className="absolute right-8 top-8 text-gray-400 hover:text-white"

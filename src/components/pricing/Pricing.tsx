@@ -61,7 +61,7 @@ const Pricing: React.FC = () => {
     credits: [
       {
         question: 'What is a credit based plan?',
-        answer: "Credits are our platform's currency for document signing. Each signature requires 1 credit, and you can purchase credits in bundles."
+        answer: "Credits are our platform's currency for document signing. Each document sent requires 10 credit, and you can purchase credits in bundles."
       },
       {
         question: 'Do credits expire?',
@@ -69,7 +69,7 @@ const Pricing: React.FC = () => {
       },
       {
         question: 'How many signatures per credit?',
-        answer: "Each credit allows for one signature. For documents requiring multiple signatures, you'll need one credit per signature required."
+        answer: "We don't charge for each signature we charge per each document sent."
       }
     ],
     payments: [
@@ -174,7 +174,7 @@ const Pricing: React.FC = () => {
                     </button>
                     {activeFaq === 0 && (
                       <div className="pt-2 text-gray-400">
-                        Credits are our platform's currency for document signing. Each signature requires 1 credit, and you can purchase credits in bundles. Choose the plan that matches your signing needs, and use credits whenever you need them.
+                        Credits are our platform's currency for document signing. Each document sent requires 10 credit, and you can purchase credits in bundles. Choose the plan that matches your signing needs, and use credits whenever you need them.
                       </div>
                     )}
                   </div>
@@ -219,7 +219,7 @@ const Pricing: React.FC = () => {
                     </button>
                     {activeFaq === 3 && (
                       <div className="pt-2 text-gray-400">
-                        Each credit allows for one signature. For documents requiring multiple signatures, you'll need one credit per signature required.
+                        We don't charge for each signature we charge per each document sent.
                       </div>
                     )}
                   </div>
@@ -303,7 +303,7 @@ const Pricing: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {renderActionButton('₹999')}
+                  {renderActionButton('₹899')}
                 </div>
               </div>
             </>
