@@ -427,13 +427,7 @@ const Pricing: React.FC = () => {
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Create with AI</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span>Unlimited Document Creations</span>
+                      <span>Unlimited Documents</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -445,13 +439,19 @@ const Pricing: React.FC = () => {
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Unlimited Templates for Documents</span>
+                      <span>Fixed Monthly Cost</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Upload any kind of Documents(.docx, pdf, .word etc..)</span>
+                      <span>Subscription users will get early access to upcoming features</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Priority Support</span>
                     </div>
                   </div>
 
