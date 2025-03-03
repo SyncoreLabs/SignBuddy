@@ -28,7 +28,7 @@ const AccountSettings = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isGoogleUser, setIsGoogleUser] = useState(false);
     const [updateMessage, setUpdateMessage] = useState('');
-const [verifyMessage, setVerifyMessage] = useState('');
+    const [verifyMessage, setVerifyMessage] = useState('');
 
     const [pendingChanges, setPendingChanges] = useState<{
         userName?: string;
@@ -77,6 +77,11 @@ const [verifyMessage, setVerifyMessage] = useState('');
         return true;
     };
 
+    const validateEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
     useEffect(() => {
         const fetchUserData = async () => {
             try {
@@ -101,7 +106,7 @@ const [verifyMessage, setVerifyMessage] = useState('');
                 console.error('Error fetching user data:', error);
             }
         };
-    
+
         fetchUserData();
     }, []);
 
@@ -123,28 +128,11 @@ const [verifyMessage, setVerifyMessage] = useState('');
         fetchAvatars();
     }, []);
 
-    const handleSendOtp = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('https://server.signbuddy.in/api/v1/sendOtp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (!response.ok) throw new Error('Failed to send OTP');
-            setShowOtpModal(true);
-        } catch (error) {
-            console.error('Error sending OTP:', error);
-        }
-    };
-
     const handleVerifyOtp = async () => {
         try {
             const token = localStorage.getItem('token');
-            
-            // First verify the OTP
+    
+            // Send OTP verification and email update in one request
             const verifyResponse = await fetch('https://server.signbuddy.in/api/v1/profile-verify', {
                 method: 'POST',
                 headers: {
@@ -163,23 +151,24 @@ const [verifyMessage, setVerifyMessage] = useState('');
                 throw new Error(verifyData.error || 'Invalid OTP');
             }
     
-            // After OTP verification, update the profile
-            const updateResponse = await fetch('https://server.signbuddy.in/api/v1/me/profile-update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    userName: pendingChanges?.userName,
-                    email: pendingChanges?.email,
-                    avatar: pendingChanges?.avatar
-                })
-            });
+            // After successful verification, update the rest of the profile if needed
+            if (pendingChanges?.userName || pendingChanges?.avatar) {
+                const updateResponse = await fetch('https://server.signbuddy.in/api/v1/me/profile-update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        userName: pendingChanges?.userName,
+                        avatar: pendingChanges?.avatar
+                    })
+                });
     
-            const updateData = await updateResponse.json();
-            if (!updateResponse.ok) {
-                throw new Error(updateData.error || 'Failed to update profile');
+                const updateData = await updateResponse.json();
+                if (!updateResponse.ok) {
+                    throw new Error(updateData.error || 'Failed to update profile');
+                }
             }
     
             // Update UI and clean up
@@ -206,7 +195,27 @@ const [verifyMessage, setVerifyMessage] = useState('');
         try {
             const token = localStorage.getItem('token');
             const emailChanged = email !== currentUser?.email;
-    
+            const usernameChanged = username !== currentUser?.userName;
+            const avatarChanged = selectedAvatar !== currentUser?.avatar;
+
+            // Validate email if it's being changed
+            if (emailChanged && !validateEmail(email)) {
+                setUpdateMessage('Please enter a valid email address');
+                return;
+            }
+
+            // Create update payload with only changed fields
+            const updatePayload: { userName?: string; email?: string; avatar?: string } = {};
+            if (usernameChanged) updatePayload.userName = username;
+            if (avatarChanged) updatePayload.avatar = selectedAvatar;
+            if (emailChanged) updatePayload.email = email;
+
+            // If no changes, return early
+            if (Object.keys(updatePayload).length === 0) {
+                setUpdateMessage('No changes to update');
+                return;
+            }
+
             // If email is not changed, update profile directly
             if (!emailChanged) {
                 const updateResponse = await fetch('https://server.signbuddy.in/api/v1/me/profile-update', {
@@ -215,29 +224,40 @@ const [verifyMessage, setVerifyMessage] = useState('');
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({
-                        userName: username,
-                        email: currentUser?.email,
-                        avatar: selectedAvatar
-                    })
+                    body: JSON.stringify(updatePayload)
                 });
-    
+
                 const data = await updateResponse.json();
                 if (!updateResponse.ok) {
                     throw new Error(data.error || 'Failed to update profile');
                 }
-    
+
+                // Fetch updated user data
+                const userResponse = await fetch('https://server.signbuddy.in/api/v1/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!userResponse.ok) throw new Error('Failed to fetch updated user data');
+                const { user } = await userResponse.json();
+
+                if (user) {
+                    setCurrentUser(user);
+                    setUsername(user.userName || '');
+                    setEmail(user.email || '');
+                    setSelectedAvatar(user.avatar || '');
+                }
+
                 setUpdateMessage('Profile updated successfully');
-                setCurrentUser(prev => prev ? {
-                    ...prev,
-                    userName: username,
-                    avatar: selectedAvatar
-                } : null);
-    
                 return;
             }
-    
-            // If email is changed, send OTP first
+
+            // Store pending changes and show OTP modal for email change
+            setPendingChanges(updatePayload);
+            setShowOtpModal(true);
+
+            // Send OTP
             const otpResponse = await fetch('https://server.signbuddy.in/api/v1/profile-verify', {
                 method: 'POST',
                 headers: {
@@ -249,21 +269,15 @@ const [verifyMessage, setVerifyMessage] = useState('');
                     newEmail: email
                 })
             });
-    
+
             const otpData = await otpResponse.json();
             if (!otpResponse.ok) {
+                setShowOtpModal(false);
                 throw new Error(otpData.error || 'Failed to send OTP');
             }
-    
-            // Store pending changes and show OTP modal
-            setPendingChanges({
-                userName: username,
-                email: email,
-                avatar: selectedAvatar
-            });
-            setShowOtpModal(true);
+
             setUpdateMessage('OTP sent to your email');
-    
+
         } catch (error: any) {
             console.error('Error:', error);
             setUpdateMessage(error.message || 'Error updating profile');
@@ -376,13 +390,13 @@ const [verifyMessage, setVerifyMessage] = useState('');
                                     {/* Left: Profile Info */}
                                     <div className="flex items-center gap-3 w-full sm:w-auto">
                                         <img
-                                            src={selectedAvatar || '/default-avatar.png'}
+                                            src={currentUser?.avatar || '/default-avatar.png'}
                                             alt="Current Avatar"
                                             className="w-12 h-12 rounded-full"
                                         />
                                         <div>
-                                            <h2 className="text-lg sm:text-xl text-gray-200">{username}</h2>
-                                            <p className="text-sm sm:text-base text-gray-500">{email}</p>
+                                            <h2 className="text-lg sm:text-xl text-gray-200">{currentUser?.userName}</h2>
+                                            <p className="text-sm sm:text-base text-gray-500">{currentUser?.email}</p>
                                         </div>
                                     </div>
 
@@ -411,8 +425,8 @@ const [verifyMessage, setVerifyMessage] = useState('');
                                                     </button>
                                                 ))}
                                         </div>
-                                        <div className="flex items-center justify-end">
-                                            <div className="flex items-center gap-3 mr-12">
+                                        <div className="flex items-center justify-center">
+                                            <div className="flex items-center gap-3 ">
                                                 <button
                                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                                     disabled={currentPage === 1}
@@ -431,12 +445,6 @@ const [verifyMessage, setVerifyMessage] = useState('');
                                                     →
                                                 </button>
                                             </div>
-                                            <button
-                                                onClick={handleSubmit}
-                                                className="px-6 py-2 bg-[#222] rounded text-sm hover:bg-[#333]"
-                                            >
-                                                Update
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -447,7 +455,7 @@ const [verifyMessage, setVerifyMessage] = useState('');
                                         <label className="block text-gray-200 mb-2">Update username</label>
                                         <input
                                             type="text"
-                                            value={username}
+                                            placeholder={username || "Enter new username"}
                                             onChange={(e) => setUsername(e.target.value)}
                                             className="w-full bg-[#0A0A0A] border border-white/10 rounded px-4 py-2.5 text-base"
                                         />
@@ -456,7 +464,7 @@ const [verifyMessage, setVerifyMessage] = useState('');
                                         <label className="block text-gray-200 mb-2">Update email</label>
                                         <input
                                             type="email"
-                                            value={email}
+                                            placeholder={email || "Enter new email"}
                                             onChange={(e) => setEmail(e.target.value)}
                                             className="w-full bg-[#0A0A0A] border border-white/10 rounded px-4 py-2.5 text-base"
                                         />
@@ -472,7 +480,7 @@ const [verifyMessage, setVerifyMessage] = useState('');
                                 </div>
                             </div>
                         ) : (
-                         activeTab === 'password' && (
+                            activeTab === 'password' && (
                                 <div className="bg-[#111] rounded-lg border border-white/10 p-4 sm:p-6">
                                     <div className="max-w-xl space-y-6">
                                         {!isGoogleUser && (
@@ -597,16 +605,16 @@ const [verifyMessage, setVerifyMessage] = useState('');
                 </div>
             )}
             {updateMessage && (
-    <div className="mt-4 p-4 bg-green-500/10 text-green-500 rounded-lg">
-        {updateMessage}
-    </div>
-)}
+                <div className="mt-4 p-4 bg-green-500/10 text-green-500 rounded-lg">
+                    {updateMessage}
+                </div>
+            )}
 
-{verifyMessage && (
-    <div className="mt-4 p-4 bg-red-500/10 text-red-500 rounded-lg">
-        {verifyMessage}
-    </div>
-)}
+            {verifyMessage && (
+                <div className="mt-4 p-4 bg-red-500/10 text-red-500 rounded-lg">
+                    {verifyMessage}
+                </div>
+            )}
         </div >
     );
 };
