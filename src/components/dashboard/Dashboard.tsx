@@ -563,31 +563,23 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="rounded-lg border border-white/30">
-              {(activeTab === "your"
-                ? filteredDocuments
-                : filteredReceivedDocuments
-              ).length === 0 ? (
-                <NoDocumentsMessage type={activeTab} />
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/30 bg-black/60">
-                      {activeTab === "your" ? (
-                        <>
+              {(activeTab === "your" ? filteredDocuments : filteredReceivedDocuments).length === 0 ? (
+                <div>
+                  {activeTab === "your" && (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/30 bg-black/60">
                           <th className="text-left py-3 px-4 text-gray-400">
                             Title
                           </th>
                           <th className="text-left py-3 px-4 text-gray-400">
                             <div className="relative status-filter">
                               <button
-                                onClick={() =>
-                                  setShowStatusFilter(!showStatusFilter)
-                                }
+                                onClick={() => setShowStatusFilter(!showStatusFilter)}
                                 className="flex items-center gap-2 transition-colors hover:text-white"
                               >
                                 Status{" "}
-                                {statusFilter.length > 0 &&
-                                  `(${statusFilter.length})`}
+                                {statusFilter.length > 0 && `(${statusFilter.length})`}
                                 <svg
                                   className="w-4 h-4"
                                   viewBox="0 0 24 24"
@@ -618,12 +610,12 @@ const Dashboard: React.FC = () => {
                                         handleStatusFilter(status.toLowerCase() as DocumentStatus);
                                       }}
                                       className={`w-full text-left px-3 py-1.5 text-sm flex items-center justify-between ${status === "All"
-                                          ? statusFilter.length === 0
-                                            ? "text-white bg-black"
-                                            : "text-gray-400"
-                                          : statusFilter.includes(status.toLowerCase() as DocumentStatus)
-                                            ? "text-white bg-black"
-                                            : "text-gray-400"
+                                        ? statusFilter.length === 0
+                                          ? "text-white bg-black"
+                                          : "text-gray-400"
+                                        : statusFilter.includes(status.toLowerCase() as DocumentStatus)
+                                          ? "text-white bg-black"
+                                          : "text-gray-400"
                                         }`}
                                     >
                                       <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
@@ -659,26 +651,102 @@ const Dashboard: React.FC = () => {
                           <th className="text-left py-3 px-4 text-gray-400">
                             Updates
                           </th>
-                        </>
-                      ) : (
-                        <>
-                          <th className="text-left py-3 px-4 text-gray-400">
-                            Title
-                          </th>
-                          <th className="text-left py-3 px-4 text-gray-400">
-                            Status
-                          </th>
-                          <th className="text-left py-3 px-4 text-gray-400">
-                            Recipients
-                          </th>
-                          <th className="text-left py-3 px-4 text-gray-400">
-                            Actions
-                          </th>
-                          <th className="text-left py-3 px-4 text-gray-400">
-                            Updates
-                          </th>
-                        </>
-                      )}
+                        </tr>
+                      </thead>
+                    </table>
+                  )}
+                  <NoDocumentsMessage type={activeTab} />
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/30 bg-black/60">
+                      <th className="text-left py-3 px-4 text-gray-400">
+                        Title
+                      </th>
+                      <th className="text-left py-3 px-4 text-gray-400">
+                        {activeTab === "your" ? (
+                          <div className="relative status-filter">
+                            <button
+                              onClick={() => setShowStatusFilter(!showStatusFilter)}
+                              className="flex items-center gap-2 transition-colors hover:text-white"
+                            >
+                              Status{" "}
+                              {statusFilter.length > 0 && `(${statusFilter.length})`}
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            </button>
+                            {showStatusFilter && (
+                              <div className="absolute top-full left-0 mt-1 w-32 bg-black border border-white/30 rounded-lg shadow-lg z-50">
+                                {[
+                                  "All",
+                                  "draft",
+                                  "viewed",
+                                  "completed",
+                                  "pending",
+                                ].map((status) => (
+                                  <button
+                                    key={status}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusFilter(status.toLowerCase() as DocumentStatus);
+                                    }}
+                                    className={`w-full text-left px-3 py-1.5 text-sm flex items-center justify-between ${status === "All"
+                                      ? statusFilter.length === 0
+                                        ? "text-white bg-black"
+                                        : "text-gray-400"
+                                      : statusFilter.includes(status.toLowerCase() as DocumentStatus)
+                                        ? "text-white bg-black"
+                                        : "text-gray-400"
+                                      }`}
+                                  >
+                                    <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                                    {(status === "All"
+                                      ? statusFilter.length === 0
+                                      : statusFilter.includes(status.toLowerCase() as DocumentStatus)) && (
+                                        <svg
+                                          className="w-4 h-4"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                      )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            </div>
+                          ) : (
+                            "Status"
+                          )}
+                        </th>
+                      <th className="text-left py-3 px-4 text-gray-400">
+                        Recipients
+                      </th>
+                      <th className="text-left py-3 px-4 text-gray-400">
+                        Actions
+                      </th>
+                      <th className="text-left py-3 px-4 text-gray-400">
+                        Updates
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1210,7 +1278,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div >
       {showPreview && selectedDocument && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-black/90 rounded-xl border border-white/30 w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -1271,71 +1339,73 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-black/90 rounded-xl border border-white/30 w-full max-w-md p-6">
-            <h3 className="text-xl font-medium mb-4">Delete Document</h3>
-            <p className="text-gray-400 mb-6">
-              Are you sure you want to delete "{documentToDelete}"? This action
-              cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 rounded-lg border border-white/30 text-gray-400 hover:bg-white/10 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    const token = localStorage.getItem("token");
-                    if (!token || !documentKeyToDelete) return;
+      {
+        showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-black/90 rounded-xl border border-white/30 w-full max-w-md p-6">
+              <h3 className="text-xl font-medium mb-4">Delete Document</h3>
+              <p className="text-gray-400 mb-6">
+                Are you sure you want to delete "{documentToDelete}"? This action
+                cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 rounded-lg border border-white/30 text-gray-400 hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem("token");
+                      if (!token || !documentKeyToDelete) return;
 
-                    const response = await fetch(
-                      "https://server.signbuddy.in/api/v1/deleteagreement",
-                      {
-                        method: "DELETE",
-                        headers: {
-                          Authorization: `Bearer ${token}`,
-                          "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                          key: documentKeyToDelete,
-                          type: documentTypeToDelete
-                        })
-                      }
-                    );
-
-                    if (response.ok) {
-                      // Remove the document from the local state
-                      setRecentDocuments((prev) =>
-                        prev.filter(
-                          (doc) => doc.documentKey !== documentKeyToDelete
-                        )
+                      const response = await fetch(
+                        "https://server.signbuddy.in/api/v1/deleteagreement",
+                        {
+                          method: "DELETE",
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            key: documentKeyToDelete,
+                            type: documentTypeToDelete
+                          })
+                        }
                       );
-                      alert("Document deleted successfully");
-                    } else {
-                      throw new Error("Failed to delete document");
+
+                      if (response.ok) {
+                        // Remove the document from the local state
+                        setRecentDocuments((prev) =>
+                          prev.filter(
+                            (doc) => doc.documentKey !== documentKeyToDelete
+                          )
+                        );
+                        alert("Document deleted successfully");
+                      } else {
+                        throw new Error("Failed to delete document");
+                      }
+                    } catch (error) {
+                      console.error("Error deleting document:", error);
+                      alert("Failed to delete document");
+                    } finally {
+                      setShowDeleteConfirm(false);
+                      setDocumentToDelete(null);
+                      setDocumentKeyToDelete(null);
                     }
-                  } catch (error) {
-                    console.error("Error deleting document:", error);
-                    alert("Failed to delete document");
-                  } finally {
-                    setShowDeleteConfirm(false);
-                    setDocumentToDelete(null);
-                    setDocumentKeyToDelete(null);
-                  }
-                }}
-                className="px-4 py-2 rounded-lg bg-red-600/40 border border-red-500/50 text-red-500 hover:bg-red-600/60 transition-colors"
-              >
-                Delete
-              </button>
+                  }}
+                  className="px-4 py-2 rounded-lg bg-red-600/40 border border-red-500/50 text-red-500 hover:bg-red-600/60 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

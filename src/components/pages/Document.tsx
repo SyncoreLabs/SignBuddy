@@ -149,11 +149,11 @@ const Document = () => {
         }
         setIsUploading(false);
         // Assume the API returns an array of image URLs in data.imageUrls
-        navigate("/document-recipients", {
+        navigate("/document/recipients", {
           state: {
             imageUrls: data.imageUrls,
             fileKey: data.fileKey,
-            originalName: data.originalName,
+            originalName: data.originalName, 
           },
         });
       } catch (error: any) {
