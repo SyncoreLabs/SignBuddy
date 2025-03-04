@@ -29,7 +29,7 @@ interface UserData {
 interface LocationState {
   documentUrls: string[];
   documentTitle: string;
-  documentKey: string;
+  fileKey: string;
   placeholders: Array<{
     position: { x: string; y: string };
     size: { width: string; height: string };
@@ -105,6 +105,7 @@ const DocumentRecipients: React.FC = () => {
 const [emailMessage, setEmailMessage] = useState("");
 const [ccEmails, setCcEmails] = useState<string[]>([]);
 const [bccEmails, setBccEmails] = useState<string[]>([]);
+const [fileKey, setfileKey] = useState<string>("");
 
   const users = ["User1", "User2", "User3"]; //
   const toggleFab = () => {
@@ -150,7 +151,7 @@ const [bccEmails, setBccEmails] = useState<string[]>([]);
         return;
       }
   
-      const fileKey = location.state?.documentKey;
+      const fileKey = location.state?.fileKey;
       if (!fileKey) {
         setToastMessage('Document key not found');
         setShowToast(true);
@@ -161,7 +162,7 @@ const [bccEmails, setBccEmails] = useState<string[]>([]);
       const draftData = {
         fileKey: fileKey,
         updatedDraft: {
-          documentKey: fileKey,
+          fileKey: fileKey,
           documentTitle: documentName || location.state?.documentTitle,
           documentUrls: documentPages,
           fileUrl: documentPages[0], // Add fileUrl field (using first page URL)
@@ -243,19 +244,25 @@ const [bccEmails, setBccEmails] = useState<string[]>([]);
     if (isSignatory) signers.push("You");
     return signers;
   };
-
   useEffect(() => {
     if (!state?.documentUrls || state.documentUrls.length === 0) {
       console.error('No document URLs found:', state);
       navigate("/dashboard");
       return;
     }
-
+  
     // Set the document pages from the passed URLs
     setDocumentPages(state.documentUrls);
     // Set document name if available
     if (state.documentTitle) {
       setDocumentName(state.documentTitle);
+    }
+    // Store the document key
+    if (state.fileKey) {
+      setfileKey(state.fileKey);
+      console.log("Document key set:", state.fileKey); // Debug log
+    } else {
+      console.error("Document key missing from state:", state); // Debug log
     }
   }, [state, navigate]);
 
@@ -308,43 +315,32 @@ const [bccEmails, setBccEmails] = useState<string[]>([]);
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
-
+  
         const response = await fetch("https://server.signbuddy.in/api/v1/me", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch user data");
-        }
-
+  
+        if (!response.ok) throw new Error("Failed to fetch user data");
+  
         const data = await response.json();
         if (data.user) {
-          // Update default avatar if none provided
-          const userWithAvatar = {
-            ...data,
+          setUserData({
             user: {
               ...data.user,
-              avatar: data.user.avatar || "/avatars/default.png",
-            },
-          };
-          setUserData(userWithAvatar);
+              userName: data.user.userName,
+              email: data.user.email,
+              avatar: data.user.avatar,
+              credits: data.user.credits
+            }
+          });
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
-        // Set fallback user data with default avatar
-        setUserData({
-          user: {
-            email: "user@example.com",
-            userName: "User",
-            avatar: "/avatars/default.png",
-            credits: 0,
-          },
-        });
       }
     };
-
+  
     fetchUserData();
   }, []);
 
@@ -655,34 +651,87 @@ const [bccEmails, setBccEmails] = useState<string[]>([]);
 
   const handleEmailing = async () => {
     try {
-      // Validate if there are any recipients or if user is signatory
-      if (!isSignatory && recipients.every(r => !r.name || !r.email)) {
-        setToastMessage("Please add at least one recipient before proceeding");
+       // Get fileKey from location state
+       const fileKey = location.state?.fileKey;
+      // Use the stored documentKey instead of accessing location.state directly
+      if (!fileKey) {
+        setToastMessage("Document key is missing");
+        setShowToast(true);
+        console.error("Document key is missing. Current state:", { fileKey, locationState: location.state });
+        return;
+      }
+      
+      // Validate required data
+      if (!documentName && !documentTitle) {
+        setToastMessage("Document name is missing");
         setShowToast(true);
         return;
       }
-  
+
+      if (!documentUrls || documentUrls.length === 0) {
+        setToastMessage("Document pages are missing");
+        setShowToast(true);
+        return;
+      }
+
+      if (!fileKey) {
+        setToastMessage("Document key is missing");
+        setShowToast(true);
+        return;
+      }
+      if (isSignatory && (!userData?.user.email || !userData?.user.userName)) {
+        setToastMessage("Your user data is not properly loaded. Please refresh the page.");
+        setShowToast(true);
+        return;
+      }
+
+       // Filter out empty recipients and include user if they are a signatory
+       const validRecipients = recipients.filter(r => r.name && r.email && isValidEmail(r.email));
+       const allRecipients = isSignatory 
+         ? [...validRecipients, { 
+             name: userData!.user.userName,  // Use API data directly
+             email: userData!.user.email,    // Use API data directly
+             recipientsAvatar: userData!.user.avatar
+           }]
+         : validRecipients;
+
+    // Validate that all recipients have valid data
+    if (allRecipients.some(r => !r.name || !r.email || !isValidEmail(r.email))) {
+      setToastMessage("All recipients must have valid names and email addresses");
+      setShowToast(true);
+      return;
+    }
+
       // Navigate to email compose with all necessary data
       navigate("/email-compose", {
         state: {
-          documentName: documentName || documentTitle,
-          recipients: recipients.map(r => r.email), // Only send emails
-          imageUrls: documentUrls,
-          placeholderData: placeholders.map((p, index) => ({
-            placeholderNumber: index + 1,
-            position: {
-              x: `${p.xPercent}%`,
-              y: `${p.yPercent}%`
-            },
-            size: {
-              width: `${p.widthPercent}%`,
-              height: `${p.heightPercent}%`
-            },
-            type: p.fieldType || "signature",
-            assignedTo: p.signer || "",
-            pageNumber: p.pageIndex
-          })),
-          fileKey: location.state?.documentKey
+          data: {
+            documentName: documentName || documentTitle,
+            recipients: allRecipients,
+            recipientNames: allRecipients.map(r => r.name),
+            recipientEmails: allRecipients.map(r => r.email),
+            imageUrls: documentUrls,
+            placeholderData: placeholders.map((p) => ({
+              placeholderNumber: p.id,
+              position: {
+                x: `${p.xPercent}%`,
+                y: `${p.yPercent}%`
+              },
+              size: {
+                width: `${p.widthPercent}%`,
+                height: `${p.heightPercent}%`
+              },
+              type: p.fieldType || "signature",
+              assignedTo: p.signer || "",
+              pageNumber: p.pageIndex + 1,
+              email: allRecipients.find(r => r.name === p.signer)?.email || ""
+            })),
+            fileKey: fileKey, // Explicitly include the fileKey
+            emailSubject: emailSubject || `Please sign ${documentName || documentTitle}`,
+            emailMessage: emailMessage || "",
+            ccEmails: ccEmails,
+            bccEmails: bccEmails
+          }
         }
       });
     } catch (error) {

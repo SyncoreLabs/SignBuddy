@@ -108,6 +108,8 @@ const Dashboard: React.FC = () => {
     []
   );
   const [documentTypeToDelete, setDocumentTypeToDelete] = useState<'agreement' | 'draft' | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+const documentsPerPage = 10; 
   // Add this with other state declarations
   const [activeTab, setActiveTab] = useState<"your" | "received">(() => {
     const savedTab = localStorage.getItem("dashboardActiveTab");
@@ -117,6 +119,40 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     localStorage.setItem("dashboardActiveTab", activeTab);
   }, [activeTab]);
+
+  const getPaginatedDocuments = (documents: RecentDocument[]) => {
+    const indexOfLastDoc = currentPage * documentsPerPage;
+    const indexOfFirstDoc = indexOfLastDoc - documentsPerPage;
+    return documents.slice(indexOfFirstDoc, indexOfLastDoc);
+  };
+
+  const filteredDocuments = recentDocuments.filter((doc) => {
+    const matchesStatus =
+      statusFilter.length === 0
+        ? true
+        : statusFilter.includes(doc.status.toLowerCase() as DocumentStatus);
+    const matchesSearch =
+      searchQuery === "" ||
+      doc.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  const filteredReceivedDocuments = receivedDocuments.filter((doc) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      doc.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  });
+
+  const paginatedDocuments = getPaginatedDocuments(
+    activeTab === "your" ? filteredDocuments : filteredReceivedDocuments
+  );
+
+  const PaginationControls = ({ totalDocuments }: { totalDocuments: number }) => {
+    const totalPages = Math.ceil(totalDocuments / documentsPerPage);
+  
+
+  };
 
   const truncateText = (text: string | undefined, maxLength: number = 30) => {
     if (!text) return ""; // Return empty string if text is undefined or null
@@ -298,6 +334,10 @@ const Dashboard: React.FC = () => {
     navigate("/document");
   };
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, activeTab]);
+
   const handleSendReminder = async (doc: RecentDocument) => {
     try {
       const token = localStorage.getItem("token");
@@ -366,17 +406,6 @@ const Dashboard: React.FC = () => {
     setShowPreview(true);
   };
 
-  const filteredDocuments = recentDocuments.filter((doc) => {
-    const matchesStatus =
-      statusFilter.length === 0
-        ? true
-        : statusFilter.includes(doc.status.toLowerCase() as DocumentStatus);
-    const matchesSearch =
-      searchQuery === "" ||
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
   const handleStatusFilter = (status: DocumentStatus) => {
     if (status.toLowerCase() === "all") {
       setStatusFilter([]);
@@ -392,14 +421,6 @@ const Dashboard: React.FC = () => {
       });
     }
   };
-
-  // Add this with other filter functions
-  const filteredReceivedDocuments = receivedDocuments.filter((doc) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
 
   const NoDocumentsMessage = ({ type }: { type: "your" | "received" }) => (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -750,14 +771,8 @@ const Dashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(activeTab === "your"
-                      ? filteredDocuments
-                      : filteredReceivedDocuments
-                    ).map((doc, index) => (
-                      <tr
-                        key={doc.documentKey}
-                        className="border-b border-white/10"
-                      >
+                  {paginatedDocuments.map((doc, index) => (
+                      <tr key={doc.documentKey} className="border-b border-white/10">
                         {activeTab === "your" ? (
                           <>
                             <td className="py-4 px-4">
@@ -1000,6 +1015,13 @@ const Dashboard: React.FC = () => {
                       </tr>
                     ))}
                   </tbody>
+                  <PaginationControls 
+  totalDocuments={
+    activeTab === "your" 
+      ? filteredDocuments.length 
+      : filteredReceivedDocuments.length
+  } 
+/>
                 </table>
               )}
             </div>
@@ -1226,21 +1248,15 @@ const Dashboard: React.FC = () => {
 
           {/* Pagination */}
           <div className="flex flex-row sm:justify-end items-center mt-4 gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">Rows per page</span>
-              <select className="bg-black/40 border border-white/30 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option>10</option>
-                <option>20</option>
-                <option>30</option>
-              </select>
-            </div>
-
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-400">Page 1 of 1</span>
+              <span className="text-sm text-gray-400">
+                Page {currentPage} of {Math.ceil((activeTab === "your" ? filteredDocuments.length : filteredReceivedDocuments.length) / documentsPerPage)}
+              </span>
               <div className="flex gap-1">
                 <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border border-white/30 bg-black/40 text-gray-400 disabled:opacity-50"
-                  disabled
+                  disabled={currentPage === 1}
                 >
                   <svg
                     className="w-4 h-4"
@@ -1257,8 +1273,9 @@ const Dashboard: React.FC = () => {
                   </svg>
                 </button>
                 <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil((activeTab === "your" ? filteredDocuments.length : filteredReceivedDocuments.length) / documentsPerPage)))}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border border-white/30 bg-black/40 text-gray-400 disabled:opacity-50"
-                  disabled
+                  disabled={currentPage === Math.ceil((activeTab === "your" ? filteredDocuments.length : filteredReceivedDocuments.length) / documentsPerPage)}
                 >
                   <svg
                     className="w-4 h-4"

@@ -4,9 +4,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const EmailComposePage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [emailInput, setEmailInput] = useState('');
+  const {
+    documentName,
+    recipientNames,
+    recipientEmails,
+    imageUrls,
+    placeholderData,
+    fileKey
+  } = location.state?.data || {};
+  const [ccInput, setCcInput] = useState('');
   const [emailTemplate, setEmailTemplate] = useState({
-    subject: `Please complete the ${location.state?.documentName || 'document'}`,
+    subject: `Please complete the ${documentName || 'document'}`,
     message: `Hey there,
 
 I have formulated the agreement as discussed earlier. Please go through the document and complete the signing here. Just tap on the document and get it done. You don't need to send it back to me it will be automatically sent to me.
@@ -14,12 +22,17 @@ I have formulated the agreement as discussed earlier. Please go through the docu
 Thank you.
 
 Please click anywhere below to complete the document.`,
-    documentName: location.state?.documentName || '',
-    recipients: [],
-    image: location.state?.imageUrls?.[0] || '',
-    placeholderData: location.state?.placeholderData || [],
-    fileKey: location.state?.fileKey || ''
+    recipientNames: recipientNames || [],
+    recipientEmails: recipientEmails || [],
+    documentName: documentName || '',
+    recipients: recipientEmails || [], // Using recipientEmails as recipients
+    ccRecipients: [],
+    image: imageUrls?.[0] || '',
+    placeholderData: placeholderData || [],
+    fileKey: fileKey || ''
   });
+
+
   const [userDetails, setUserDetails] = useState({
     name: '',
     email: '',
@@ -54,10 +67,9 @@ Please click anywhere below to complete the document.`,
 
     fetchUserData();
   }, []);
-
+ console.log(location.state?.data);
   useEffect(() => {
-    // Validate required state data
-    if (!location.state?.fileKey || !location.state?.recipients) {
+    if (!location.state?.data?.fileKey || !location.state?.data?.recipientEmails) {
       navigate('/dashboard');
       return;
     }
@@ -65,10 +77,10 @@ Please click anywhere below to complete the document.`,
     // Initialize with data from location state
     setEmailTemplate(prev => ({
       ...prev,
-      documentName: location.state.documentName,
-      image: location.state.imageUrls[0],
-      placeholderData: location.state.placeholderData,
-      fileKey: location.state.fileKey
+      documentName: location.state.data.documentName,
+      image: location.state.data.imageUrls[0],
+      placeholderData: location.state.data.placeholderData,
+      fileKey: location.state.data.fileKey
     }));
   }, [location.state, navigate]);
 
@@ -79,6 +91,22 @@ Please click anywhere below to complete the document.`,
   const handleSend = async () => {
     try {
       const token = localStorage.getItem("token");
+      
+      // Prepare the data according to the required format
+      const requestData = {
+        emails: emailTemplate.recipientEmails,
+        CC: emailTemplate.ccRecipients,
+        names: emailTemplate.recipientNames,
+        customEmail: {
+          subject: emailTemplate.subject,
+          emailBody: emailTemplate.message
+        },
+        placeholders: emailTemplate.placeholderData,
+        fileKey: emailTemplate.fileKey
+      };
+  
+      console.log('Sending data to backend:', requestData); // Debug log
+  
       const response = await fetch(
         "https://server.signbuddy.in/api/v1/sendagreement",
         {
@@ -87,24 +115,20 @@ Please click anywhere below to complete the document.`,
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            emails: emailTemplate.recipients,
-            names: emailTemplate.recipients, // You might want to modify this based on your needs
-            placeholders: emailTemplate.placeholderData,
-            fileKey: emailTemplate.fileKey,
-          }),
+          body: JSON.stringify(requestData),
         }
       );
-
+  
       if (!response.ok) {
-        throw new Error("Failed to send agreement");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to send agreement");
       }
-
+  
       // Show success toast and navigate to dashboard
       navigate("/dashboard");
     } catch (error) {
       console.error("Error sending agreement:", error);
-      // Handle error appropriately
+      // Add error handling here (e.g., show error toast)
     }
   };
 
@@ -114,20 +138,20 @@ Please click anywhere below to complete the document.`,
     return emailRegex.test(email);
   };
 
-  const handleAddEmail = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && emailInput.trim() && isValidEmail(emailInput)) {
+  const handleAddCc = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && ccInput.trim() && isValidEmail(ccInput)) {
       setEmailTemplate(prev => ({
         ...prev,
-        recipients: [...prev.recipients, emailInput.trim()]
+        ccRecipients: [...prev.ccRecipients, ccInput.trim()]
       }));
-      setEmailInput('');
+      setCcInput('');
     }
   };
 
-  const handleRemoveEmail = (indexToRemove: number) => {
+  const handleRemoveCc = (indexToRemove: number) => {
     setEmailTemplate(prev => ({
       ...prev,
-      recipients: prev.recipients.filter((_, index) => index !== indexToRemove)
+      ccRecipients: prev.ccRecipients.filter((_, index) => index !== indexToRemove)
     }));
   };
 
@@ -142,7 +166,7 @@ Please click anywhere below to complete the document.`,
 
             {/* Recipients Display */}
             <div className="flex flex-wrap items-center gap-2 p-3 border border-white/30 rounded-lg mb-4 relative">
-              {emailTemplate.recipients.map((email, index) => (
+              {emailTemplate.ccRecipients.map((email, index) => (
                 <div
                   key={index}
                   className="group bg-[#212121] px-3 py-1.5 rounded text-sm text-white flex items-center w-fit"
@@ -151,7 +175,7 @@ Please click anywhere below to complete the document.`,
                     {email}
                   </span>
                   <button
-                    onClick={() => handleRemoveEmail(index)}
+                    onClick={() => handleRemoveCc(index)}
                     className="text-gray-400 hover:text-white ml-1 md:w-0 md:group-hover:w-4 overflow-hidden transition-all"
                     aria-label="Remove email"
                   >
@@ -163,10 +187,10 @@ Please click anywhere below to complete the document.`,
               ))}
               <input
                 type="email"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                onKeyDown={handleAddEmail}
-                placeholder={emailInput ? '' : "Enter email and press Enter"}
+                value={ccInput}
+                onChange={(e) => setCcInput(e.target.value)}
+                onKeyDown={handleAddCc}
+                placeholder="Enter CC email and press Enter"
                 className="flex-1 min-w-[200px] bg-transparent outline-none text-sm pr-8"
               />
               <div
