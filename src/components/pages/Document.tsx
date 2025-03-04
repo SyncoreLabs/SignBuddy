@@ -118,18 +118,17 @@ const Document = () => {
   const handleFileUpload = async (files: FileList | null) => {
     if (!files) return;
     const file = files[0];
-    // Allowed MIME types for PDF and Word documents
     setIsUploading(true);
     const allowedTypes = [
       "application/pdf",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
-
+  
     if (allowedTypes.includes(file.type)) {
       try {
         const formData = new FormData();
         formData.append("file", file);
-
+  
         const token = localStorage.getItem("token");
         const response = await fetch(
           "https://server.signbuddy.in/api/v1/converttoimages",
@@ -141,19 +140,23 @@ const Document = () => {
             body: formData,
           }
         );
-
+  
         const data = await response.json();
-
+  
         if (!response.ok) {
           throw new Error(data.error || "Failed to convert file to images");
         }
         setIsUploading(false);
-        // Assume the API returns an array of image URLs in data.imageUrls
+        
+        // Navigate to the recipients page with the correct state structure
         navigate("/document/recipients", {
           state: {
-            imageUrls: data.imageUrls,
+            documentUrls: data.imageUrls,
+            documentTitle: file.name,
+            originalName: file.name,
             fileKey: data.fileKey,
-            originalName: data.originalName, 
+            recipients: [],
+            placeholders: []
           },
         });
       } catch (error: any) {

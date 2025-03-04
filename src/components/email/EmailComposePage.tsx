@@ -15,17 +15,61 @@ Thank you.
 
 Please click anywhere below to complete the document.`,
     documentName: location.state?.documentName || '',
-    recipients: location.state?.recipients || [],
+    recipients: [],
     image: location.state?.imageUrls?.[0] || '',
     placeholderData: location.state?.placeholderData || [],
     fileKey: location.state?.fileKey || ''
   });
+  const [userDetails, setUserDetails] = useState({
+    name: '',
+    email: '',
+    avatar: ''
+  });
 
   useEffect(() => {
-    if (!location.state) {
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const authMethod = localStorage.getItem("authMethod");
+        const response = await fetch("https://server.signbuddy.in/api/v1/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch user data");
+        const { user } = await response.json();
+
+        if (user) {
+          setUserDetails({
+            name: user.userName || 'User',
+            email: user.email || 'user@signbuddy.com',
+            avatar: user.avatar || '/avatars/1.svg'
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  useEffect(() => {
+    // Validate required state data
+    if (!location.state?.fileKey || !location.state?.recipients) {
       navigate('/dashboard');
       return;
     }
+
+    // Initialize with data from location state
+    setEmailTemplate(prev => ({
+      ...prev,
+      documentName: location.state.documentName,
+      image: location.state.imageUrls[0],
+      placeholderData: location.state.placeholderData,
+      fileKey: location.state.fileKey
+    }));
   }, [location.state, navigate]);
 
   const handleEmailChange = (field: keyof typeof emailTemplate, value: string) => {
@@ -64,9 +108,6 @@ Please click anywhere below to complete the document.`,
     }
   };
 
-  // Update the references in the JSX to use emailTemplate
-  // e.g., emailTemplate.subject, emailTemplate.message, etc.
-  const emails = ['lokesh@syncore.in', 'suresh@syncore.in'];
   const [image, setimage] = useState('SCP2_developer_agreement');
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,7 +141,7 @@ Please click anywhere below to complete the document.`,
             <p className="text-gray-400 text-sm mb-6">This is how your mail will look like in the recipient's inbox</p>
 
             {/* Recipients Display */}
-            <div className="flex flex-wrap items-center gap-2 p-3 border border-white/30 rounded-lg mb-4">
+            <div className="flex flex-wrap items-center gap-2 p-3 border border-white/30 rounded-lg mb-4 relative">
               {emailTemplate.recipients.map((email, index) => (
                 <div
                   key={index}
@@ -126,8 +167,14 @@ Please click anywhere below to complete the document.`,
                 onChange={(e) => setEmailInput(e.target.value)}
                 onKeyDown={handleAddEmail}
                 placeholder={emailInput ? '' : "Enter email and press Enter"}
-                className="flex-1 min-w-[200px] bg-transparent outline-none text-sm"
+                className="flex-1 min-w-[200px] bg-transparent outline-none text-sm pr-8"
               />
+              <div
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                aria-label="Add CC"
+              >
+                <span className="text-sm font-medium">Cc</span>
+              </div>
             </div>
 
             {/* Subject Input */}
@@ -153,7 +200,7 @@ Please click anywhere below to complete the document.`,
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>A mail would cost 10 Credits</span>
+              <span>This action will cost 10 Credits</span>
             </div>
 
             {/* Send Button */}
@@ -173,10 +220,21 @@ Please click anywhere below to complete the document.`,
             <div className="bg-black overflow-y-auto max-h-[600px] rounded-lg p-6 border border-white/30">
               {/* Sender Info */}
               <div className="flex items-center gap-4 mb-6">
-                <img src="/avatars/1.svg" alt="Profile" className="w-12 h-12 rounded-full" />
+                <img
+                  src={userDetails.avatar}
+                  alt={`${userDetails.name}'s Profile`}
+                  className="w-12 h-12 rounded-full object-cover bg-gray-800"
+                  onError={(e) => {
+                    e.currentTarget.src = '/avatars/1.svg';
+                  }}
+                />
                 <div>
-                  <div className="font-semibold">Saritha Sharma via SignBuddy</div>
-                  <div className="text-sm text-gray-400">signbuddydocs@signbuddy.com</div>
+                  <div className="font-semibold text-white">
+                    {userDetails.name} via SignBuddy
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    Official@signbuddy.in
+                  </div>
                 </div>
               </div>
 

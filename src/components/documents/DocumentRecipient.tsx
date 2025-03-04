@@ -661,52 +661,33 @@ const [bccEmails, setBccEmails] = useState<string[]>([]);
         setShowToast(true);
         return;
       }
-
-      // Validate if there are any placeholders
-      if (placeholders.length === 0) {
-        setToastMessage("Please add at least one placeholder before proceeding");
-        setShowToast(true);
-        return;
-      }
-
-      // Format data for email compose page
-      const emailData = {
-        recipients: recipients.filter(r => r.name && r.email).map(r => r.email),
-        documentName: documentName || originalName,
-        placeholderData: placeholders.map((placeholder, index) => ({
-          placeholderNumber: index + 1,
-          position: {
-            x: placeholder.xPercent.toFixed(2) + "%",
-            y: placeholder.yPercent.toFixed(2) + "%",
-          },
-          type: placeholder.fieldType,
-          size: {
-            width: placeholder.widthPercent.toFixed(2) + "%",
-            height: placeholder.heightPercent.toFixed(2) + "%",
-          },
-          assignedTo: placeholder.signer,
-          email: placeholder.signer === "You" ? userData?.user.email :
-            recipients.find((r) => r.name === placeholder.signer)?.email || "",
-          pageNumber: placeholder.pageIndex + 1,
-        })),
-        fileKey: location.state?.fileKey || "",
-        imageUrls: documentPages
-      };
-
-      // Navigate to email compose with data
-      navigate('/email-compose', {
+  
+      // Navigate to email compose with all necessary data
+      navigate("/email-compose", {
         state: {
-          recipients: recipients.filter(r => r.name && r.email).map(r => r.email),
-          documentName: documentName || originalName,
-          placeholderData: placeholders,
-          fileKey: location.state?.fileKey,
-          imageUrls: documentPages
+          documentName: documentName || documentTitle,
+          recipients: recipients.map(r => r.email), // Only send emails
+          imageUrls: documentUrls,
+          placeholderData: placeholders.map((p, index) => ({
+            placeholderNumber: index + 1,
+            position: {
+              x: `${p.xPercent}%`,
+              y: `${p.yPercent}%`
+            },
+            size: {
+              width: `${p.widthPercent}%`,
+              height: `${p.heightPercent}%`
+            },
+            type: p.fieldType || "signature",
+            assignedTo: p.signer || "",
+            pageNumber: p.pageIndex
+          })),
+          fileKey: location.state?.documentKey
         }
       });
-      handleNavigation('/email-compose', true);
     } catch (error) {
-      console.error("Error preparing email data:", error);
-      setToastMessage("Failed to prepare email. Please try again.");
+      console.error("Error in emailing process:", error);
+      setToastMessage("An error occurred while preparing the email");
       setShowToast(true);
     }
   };
