@@ -1,23 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const EmailComposePage: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [emailInput, setEmailInput] = useState('');
   const [emailTemplate, setEmailTemplate] = useState({
-    subject: 'Please complete the SCP2_developer_agreement',
+    subject: `Please complete the ${location.state?.documentName || 'document'}`,
     message: `Hey there,
 
-Saritha here, I hope everything is fine, I have formulated the agreement as discussed earlier. Please go through the document and complete the signing here. Just tap on the document and get it done. You don't need to send it back to me it will be automatically sent to me.
+I have formulated the agreement as discussed earlier. Please go through the document and complete the signing here. Just tap on the document and get it done. You don't need to send it back to me it will be automatically sent to me.
 
 Thank you.
 
 Please click anywhere below to complete the document.`,
-    documentName: 'SCP2_developer_agreement',
-    recipients: ['lokesh@syncore.in', 'suresh@syncore.in'],
-    image: "https://signbuddy.s3.ap-south-1.amazonaws.com/images/1b576efd-4fe8-4aac-853f-05543927d700-Use+cases+-+HydPyHack.pdf/1b576efd-4fe8-4aac-853f-05543927d700-01.jpg",
+    documentName: location.state?.documentName || '',
+    recipients: location.state?.recipients || [],
+    image: location.state?.imageUrls?.[0] || '',
+    placeholderData: location.state?.placeholderData || [],
+    fileKey: location.state?.fileKey || ''
   });
+
+  useEffect(() => {
+    if (!location.state) {
+      navigate('/dashboard');
+      return;
+    }
+  }, [location.state, navigate]);
 
   const handleEmailChange = (field: keyof typeof emailTemplate, value: string) => {
     setEmailTemplate(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSend = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        "https://server.signbuddy.in/api/v1/sendagreement",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            emails: emailTemplate.recipients,
+            names: emailTemplate.recipients, // You might want to modify this based on your needs
+            placeholders: emailTemplate.placeholderData,
+            fileKey: emailTemplate.fileKey,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to send agreement");
+      }
+
+      // Show success toast and navigate to dashboard
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error sending agreement:", error);
+      // Handle error appropriately
+    }
   };
 
   // Update the references in the JSX to use emailTemplate
@@ -113,7 +157,10 @@ Please click anywhere below to complete the document.`,
             </div>
 
             {/* Send Button */}
-            <button className="mt-4 px-6 py-2 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors">
+            <button
+              onClick={handleSend}
+              className="mt-4 px-6 py-2 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors"
+            >
               Send ➤
             </button>
           </div>

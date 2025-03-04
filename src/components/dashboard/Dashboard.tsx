@@ -11,7 +11,14 @@ interface RecentDocument {
   title: string;
   documentUrl: string[];
   status: string;
-  recipients: any[];
+  recipients: {
+    email: string;
+    name: string;
+    recipientsAvatar?: string;
+    role?: string;
+    message?: string;
+    subject?: string;
+  }[];
   signedDocument: string | null;
   placeholders: {
     position: { x: string; y: string };
@@ -23,6 +30,25 @@ interface RecentDocument {
     pageNumber: number;
   }[];
   drafts: any[];
+  type?: 'agreement' | 'draft';
+  emailData?: {
+    subject: string;
+    message: string;
+    ccEmails?: string[];
+    bccEmails?: string[];
+  };
+}
+interface PreviewDocument {
+  title: string;
+  pages: string[];
+  placeholders: {
+    position: { x: string; y: string };
+    size: { width: string; height: string };
+    type: string;
+    value?: string;
+    assignedTo: string;
+    pageNumber: number;
+  }[];
 }
 
 interface IncomingAgreement {
@@ -59,7 +85,7 @@ interface UserData {
   pendingDocuments: number;
 }
 
-type DocumentStatus = "Draft" | "Viewed" | "Completed" | "pending" | "All";
+type DocumentStatus = "draft" | "viewed" | "completed" | "pending" | "all";
 
 const Dashboard: React.FC = () => {
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
@@ -70,19 +96,7 @@ const Dashboard: React.FC = () => {
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [statusFilter, setStatusFilter] = useState<DocumentStatus[]>([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<{
-    title: string;
-    pages: string[];
-    placeholders?: {
-      position: { x: string; y: string };
-      size: { width: string; height: string };
-      value?: string;
-      type: string;
-      pageNumber: number;
-      assignedTo: string; // Add this property
-      email: string; // Add this if needed
-    }[];
-  } | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<PreviewDocument | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [recentDocuments, setRecentDocuments] = useState<RecentDocument[]>([]);
@@ -93,6 +107,7 @@ const Dashboard: React.FC = () => {
   const [receivedDocuments, setReceivedDocuments] = useState<RecentDocument[]>(
     []
   );
+  const [documentTypeToDelete, setDocumentTypeToDelete] = useState<'agreement' | 'draft' | null>(null);
   // Add this with other state declarations
   const [activeTab, setActiveTab] = useState<"your" | "received">(() => {
     const savedTab = localStorage.getItem("dashboardActiveTab");
@@ -110,6 +125,30 @@ const Dashboard: React.FC = () => {
       : text;
   };
 
+  const handleCompleteDraft = (doc: RecentDocument) => {
+    try {
+      // Navigate with all the existing draft data
+      navigate(`/document/recipients`, {  // Remove the query parameter
+        state: {
+          documentKey: doc.documentKey,
+          documentUrls: doc.documentUrl,
+          documentTitle: doc.title,
+          placeholders: doc.placeholders,
+          emailData: doc.emailData || {},
+          recipients: doc.recipients.map(r => ({
+            email: r.email,
+            name: r.name,
+            role: r.role || 'signer',
+            message: r.message,
+            subject: r.subject
+          }))
+        },
+      });
+    } catch (error) {
+      console.error('Error handling draft:', error);
+    }
+  };
+
   const getRecipientUpdateText = (doc: RecentDocument) => {
     if (activeTab === "received") {
       return `Document received ${doc.receivedAt || "recently"}`;
@@ -124,15 +163,14 @@ const Dashboard: React.FC = () => {
       return "No recipient information";
     }
 
-    return `${recipient.name || "Unknown"} ${
-      doc.status === "completed"
-        ? "has signed"
-        : doc.status === "viewed"
+    return `${recipient.name || "Unknown"} ${doc.status === "completed"
+      ? "has signed"
+      : doc.status === "viewed"
         ? "has viewed"
         : doc.status === "pending"
-        ? "needs to sign"
-        : "has drafted"
-    } the document`;
+          ? "needs to sign"
+          : "has drafted"
+      } the document`;
   };
 
   useEffect(() => {
@@ -249,9 +287,10 @@ const Dashboard: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleDeleteDocument = (title: string, documentKey: string) => {
+  const handleDeleteDocument = (title: string, documentKey: string, type: 'agreement' | 'draft') => {
     setDocumentToDelete(title);
     setDocumentKeyToDelete(documentKey); // Add this state
+    setDocumentTypeToDelete(type);
     setShowDeleteConfirm(true);
   };
 
@@ -303,22 +342,26 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    // Handle both your documents and received documents
-    const documentUrls =
-      activeTab === "your" ? doc.documentUrl : doc.documentUrl;
+    // Transform the placeholders from RecentDocument format to PreviewDocument format
+    const formattedPlaceholders = doc.placeholders.map(p => ({
+      position: {
+        x: p.position.x,
+        y: p.position.y
+      },
+      size: {
+        width: p.size.width,
+        height: p.size.height
+      },
+      type: p.type,
+      assignedTo: p.assignedTo,
+      pageNumber: p.pageNumber,
+      value: ''
+    }));
 
     setSelectedDocument({
       title: doc.title,
-      pages: documentUrls,
-      placeholders: doc.placeholders.map((p) => ({
-        position: p.position,
-        size: p.size,
-        value: p.value,
-        type: p.type,
-        pageNumber: p.pageNumber,
-        assignedTo: p.assignedTo,
-        email: p.email,
-      })),
+      pages: doc.documentUrl,
+      placeholders: formattedPlaceholders
     });
     setShowPreview(true);
   };
@@ -335,15 +378,16 @@ const Dashboard: React.FC = () => {
   });
 
   const handleStatusFilter = (status: DocumentStatus) => {
-    if (status === "All") {
+    if (status.toLowerCase() === "all") {
       setStatusFilter([]);
     } else {
       setStatusFilter((prev) => {
-        const isAlreadySelected = prev.includes(status);
+        const normalizedStatus = status.toLowerCase() as DocumentStatus;
+        const isAlreadySelected = prev.includes(normalizedStatus);
         if (isAlreadySelected) {
-          return prev.filter((s) => s !== status);
+          return prev.filter((s) => s !== normalizedStatus);
         } else {
-          return [...prev, status];
+          return [...prev, normalizedStatus];
         }
       });
     }
@@ -500,21 +544,19 @@ const Dashboard: React.FC = () => {
               <div className="flex w-fit rounded-lg border border-white/30 p-0.5 mt-4">
                 <button
                   onClick={() => setActiveTab("your")}
-                  className={`px-3 py-1.5 rounded-md transition-colors text-sm ${
-                    activeTab === "your"
-                      ? "bg-white/10 text-white"
-                      : "text-gray-400 hover:text-white"
-                  }`}
+                  className={`px-3 py-1.5 rounded-md transition-colors text-sm ${activeTab === "your"
+                    ? "bg-white/10 text-white"
+                    : "text-gray-400 hover:text-white"
+                    }`}
                 >
                   Your Documents
                 </button>
                 <button
                   onClick={() => setActiveTab("received")}
-                  className={`px-3 py-1.5 rounded-md transition-colors text-sm ${
-                    activeTab === "received"
-                      ? "bg-white/10 text-white"
-                      : "text-gray-400 hover:text-white"
-                  }`}
+                  className={`px-3 py-1.5 rounded-md transition-colors text-sm ${activeTab === "received"
+                    ? "bg-white/10 text-white"
+                    : "text-gray-400 hover:text-white"
+                    }`}
                 >
                   Received Documents
                 </button>
@@ -564,51 +606,44 @@ const Dashboard: React.FC = () => {
                                 <div className="absolute top-full left-0 mt-1 w-32 bg-black border border-white/30 rounded-lg shadow-lg">
                                   {[
                                     "All",
-                                    "Draft",
-                                    "Viewed",
-                                    "Completed",
-                                    "Pending",
+                                    "draft",
+                                    "viewed",
+                                    "completed",
+                                    "pending",
                                   ].map((status) => (
                                     <button
                                       key={status}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleStatusFilter(
-                                          status as DocumentStatus
-                                        );
+                                        handleStatusFilter(status.toLowerCase() as DocumentStatus);
                                       }}
-                                      className={`w-full text-left px-3 py-1.5 text-sm flex items-center justify-between ${
-                                        status === "All"
+                                      className={`w-full text-left px-3 py-1.5 text-sm flex items-center justify-between ${status === "All"
                                           ? statusFilter.length === 0
                                             ? "text-white bg-black"
                                             : "text-gray-400"
-                                          : statusFilter.includes(
-                                              status as DocumentStatus
-                                            )
-                                          ? "text-white bg-black"
-                                          : "text-gray-400"
-                                      }`}
+                                          : statusFilter.includes(status.toLowerCase() as DocumentStatus)
+                                            ? "text-white bg-black"
+                                            : "text-gray-400"
+                                        }`}
                                     >
-                                      <span>{status}</span>
+                                      <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                                       {(status === "All"
                                         ? statusFilter.length === 0
-                                        : statusFilter.includes(
-                                            status as DocumentStatus
-                                          )) && (
-                                        <svg
-                                          className="w-4 h-4"
-                                          viewBox="0 0 24 24"
-                                          fill="none"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M5 13l4 4L19 7"
-                                          />
-                                        </svg>
-                                      )}
+                                        : statusFilter.includes(status.toLowerCase() as DocumentStatus)) && (
+                                          <svg
+                                            className="w-4 h-4"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M5 13l4 4L19 7"
+                                            />
+                                          </svg>
+                                        )}
                                     </button>
                                   ))}
                                 </div>
@@ -694,9 +729,8 @@ const Dashboard: React.FC = () => {
                                   .map((recipient, idx) => (
                                     <div
                                       key={recipient.email}
-                                      className={`w-8 h-8 rounded-full border-2 border-black overflow-hidden ${
-                                        idx > 0 ? "-ml-3" : ""
-                                      }`}
+                                      className={`w-8 h-8 rounded-full border-2 border-black overflow-hidden ${idx > 0 ? "-ml-3" : ""
+                                        }`}
                                     >
                                       <img
                                         src={recipient.recipientsAvatar}
@@ -741,11 +775,7 @@ const Dashboard: React.FC = () => {
                                 </button>
                                 {doc.status.toLowerCase() === "draft" ? (
                                   <button
-                                    onClick={() =>
-                                      navigate(
-                                        `/document/recipients?documentKey=${doc.documentKey}`
-                                      )
-                                    }
+                                    onClick={() => handleCompleteDraft(doc)}
                                     className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
                                   >
                                     Complete
@@ -762,7 +792,8 @@ const Dashboard: React.FC = () => {
                                   onClick={() =>
                                     handleDeleteDocument(
                                       doc.title,
-                                      doc.documentKey
+                                      doc.documentKey,
+                                      doc.status.toLowerCase() === 'draft' ? 'draft' : 'agreement'
                                     )
                                   }
                                   className="p-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-red-600/40 hover:border-red-500/50 hover:text-red-500 transition-all"
@@ -884,11 +915,11 @@ const Dashboard: React.FC = () => {
                                 </button>
                                 {doc.status.toLowerCase() === "pending" && (
                                   <button
-                                  onClick={() =>
-                                    navigate(`/sign/${doc.documentKey}`, {
-                                      state: { agreement: doc }
-                                    })
-                                  }
+                                    onClick={() =>
+                                      navigate(`/sign/${doc.documentKey}`, {
+                                        state: { agreement: doc }
+                                      })
+                                    }
                                     className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
                                   >
                                     Sign
@@ -928,21 +959,19 @@ const Dashboard: React.FC = () => {
             <div className="flex rounded-lg border border-white/30 p-1 mb-4">
               <button
                 onClick={() => setActiveTab("your")}
-                className={`flex-1 px-4 py-2 rounded-md transition-colors ${
-                  activeTab === "your"
-                    ? "bg-white/10 text-white"
-                    : "text-gray-400 hover:text-white"
-                }`}
+                className={`flex-1 px-4 py-2 rounded-md transition-colors ${activeTab === "your"
+                  ? "bg-white/10 text-white"
+                  : "text-gray-400 hover:text-white"
+                  }`}
               >
                 Your Documents
               </button>
               <button
                 onClick={() => setActiveTab("received")}
-                className={`flex-1 px-4 py-2 rounded-md transition-colors ${
-                  activeTab === "received"
-                    ? "bg-white/10 text-white"
-                    : "text-gray-400 hover:text-white"
-                }`}
+                className={`flex-1 px-4 py-2 rounded-md transition-colors ${activeTab === "received"
+                  ? "bg-white/10 text-white"
+                  : "text-gray-400 hover:text-white"
+                  }`}
               >
                 Received Documents
               </button>
@@ -1000,12 +1029,8 @@ const Dashboard: React.FC = () => {
                           <>
                             {doc.status.toLowerCase() === "draft" ? (
                               <button
-                                onClick={() =>
-                                  navigate(
-                                    `/document/recipients?documentKey=${doc.documentKey}`
-                                  )
-                                }
-                                className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
+                                onClick={() => handleCompleteDraft(doc)}
+                                className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
                               >
                                 Complete
                               </button>
@@ -1019,7 +1044,11 @@ const Dashboard: React.FC = () => {
                             )}
                             <button
                               onClick={() =>
-                                handleDeleteDocument(doc.title, doc.documentKey)
+                                handleDeleteDocument(
+                                  doc.title,
+                                  doc.documentKey,
+                                  doc.status.toLowerCase() === 'draft' ? 'draft' : 'agreement'
+                                )
                               }
                               className="p-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
                             >
@@ -1209,15 +1238,8 @@ const Dashboard: React.FC = () => {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
               <div className="space-y-6">
                 {selectedDocument.pages.map((page, index) => (
-                  <div
-                    key={index}
-                    className="border border-white/30 rounded-lg overflow-hidden relative"
-                  >
-                    <img
-                      src={page}
-                      alt={`Page ${index + 1}`}
-                      className="w-full h-auto"
-                    />
+                  <div key={index} className="border border-white/30 rounded-lg overflow-hidden relative">
+                    <img src={page} alt={`Page ${index + 1}`} className="w-full h-auto" />
                     {selectedDocument.placeholders
                       ?.filter((p) => p.pageNumber === index + 1)
                       .map((placeholder, pIndex) => (
@@ -1229,93 +1251,17 @@ const Dashboard: React.FC = () => {
                             top: placeholder.position.y,
                             width: placeholder.size.width,
                             height: placeholder.size.height,
+                            pointerEvents: "none",
+                            transform: "translate(0%, 0%)"
                           }}
-                          className={
-                            placeholder.value
-                              ? ""
-                              : "border-2 border-blue-500 rounded-md"
-                          }
+                          className="border-2 border-blue-500 rounded-md bg-blue-500/10"
                         >
-                          {placeholder.value ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center bg-white/90 text-black">
-                              {(() => {
-                                try {
-                                  const parsedValue = JSON.parse(
-                                    placeholder.value
-                                  );
-                                  if (placeholder.type === "signature") {
-                                    return (
-                                      <>
-                                        <img
-                                          src={
-                                            parsedValue.imageData ||
-                                            placeholder.value
-                                          }
-                                          alt="Signature"
-                                          className="w-full h-full object-contain"
-                                          style={{
-                                            transform:
-                                              parsedValue.zoom &&
-                                              parsedValue.rotation
-                                                ? `scale(${parsedValue.zoom}) rotate(${parsedValue.rotation}deg)`
-                                                : "none",
-                                          }}
-                                        />
-                                        <span className="text-xs mt-1">
-                                          {placeholder.assignedTo}
-                                        </span>
-                                      </>
-                                    );
-                                  } else if (placeholder.type === "date") {
-                                    return (
-                                      <>
-                                        <span>
-                                          {new Date(
-                                            parsedValue.text ||
-                                              placeholder.value
-                                          ).toLocaleDateString()}
-                                        </span>
-                                        <span className="text-xs mt-1">
-                                          {placeholder.assignedTo}
-                                        </span>
-                                      </>
-                                    );
-                                  } else {
-                                    return (
-                                      <>
-                                        <span>
-                                          {parsedValue.text ||
-                                            placeholder.value}
-                                        </span>
-                                        <span className="text-xs mt-1">
-                                          {placeholder.assignedTo}
-                                        </span>
-                                      </>
-                                    );
-                                  }
-                                } catch {
-                                  // If JSON parsing fails, treat as plain value
-                                  return (
-                                    <>
-                                      <span>{placeholder.value}</span>
-                                      <span className="text-xs mt-1">
-                                        {placeholder.assignedTo}
-                                      </span>
-                                    </>
-                                  );
-                                }
-                              })()}
-                            </div>
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center bg-blue-500/20">
-                              <span className="text-sm text-blue-500">
-                                {placeholder.type}
-                              </span>
-                              <span className="text-xs text-blue-400 mt-1">
-                                Assigned to: {placeholder.assignedTo}
-                              </span>
-                            </div>
-                          )}
+                          <div className="absolute top-0 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded-tl-md rounded-br-md whitespace-nowrap">
+                            {placeholder.type}
+                          </div>
+                          <div className="absolute bottom-0 right-0 bg-blue-500 text-white text-xs px-2 py-1 rounded-tr-md rounded-bl-md whitespace-nowrap">
+                            {placeholder.assignedTo}
+                          </div>
                         </div>
                       ))}
                   </div>
@@ -1354,7 +1300,10 @@ const Dashboard: React.FC = () => {
                           Authorization: `Bearer ${token}`,
                           "Content-Type": "application/json",
                         },
-                        body: JSON.stringify({ key: documentKeyToDelete }),
+                        body: JSON.stringify({
+                          key: documentKeyToDelete,
+                          type: documentTypeToDelete
+                        })
                       }
                     );
 

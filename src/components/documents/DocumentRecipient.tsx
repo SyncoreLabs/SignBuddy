@@ -27,14 +27,37 @@ interface UserData {
   };
 }
 interface LocationState {
-  imageUrls: string[];
-  originalName: string;
+  documentUrls: string[];
+  documentTitle: string;
+  documentKey: string;
+  placeholders: Array<{
+    position: { x: string; y: string };
+    size: { width: string; height: string };
+    placeholderNumber: number;
+    type: string;
+    assignedTo: string;
+    email: string;
+    pageNumber: number;
+  }>;
+  emailData?: {
+    subject: string;
+    message: string;
+    ccEmails?: string[];
+    bccEmails?: string[];
+  };
+  recipients: Array<{
+    email: string;
+    name: string;
+    role?: string;
+    message?: string;
+    subject?: string;
+  }>;
 }
 
 const DocumentRecipients: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { imageUrls = [], originalName } =
+  const { documentUrls = [], documentTitle = "", originalName } =
     (location.state as LocationState) || {};
   // Group all state declarations together at the top
   const [showToast, setShowToast] = useState(false);
@@ -73,21 +96,144 @@ const DocumentRecipients: React.FC = () => {
 
   const [showPlacementHint, setShowPlacementHint] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const state = location.state as LocationState;
+  const [documentPages, setDocumentPages] = useState<string[]>([]);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [navigateTo, setNavigateTo] = useState<string | null>(null);
+  const [emailSubject, setEmailSubject] = useState("");
+const [emailMessage, setEmailMessage] = useState("");
+const [ccEmails, setCcEmails] = useState<string[]>([]);
+const [bccEmails, setBccEmails] = useState<string[]>([]);
 
   const users = ["User1", "User2", "User3"]; //
   const toggleFab = () => {
     setIsFabOpen(!isFabOpen);
   };
+
   useEffect(() => {
-    if (!imageUrls || imageUrls.length === 0) {
-      // You can either redirect to another page
-      navigate("/dashboard");
-      // Or show an error message
-      setToastMessage("No document images found");
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+  
+    const handlePopState = () => {
+      // Don't prevent default here as it's not supported for popstate
+      if (window.location.pathname !== '/email-compose') {
+        setNavigateTo(window.location.pathname);
+        setShowExitConfirm(true);
+        // Prevent immediate navigation
+        window.history.pushState(null, '', window.location.href);
+      }
+    };
+  
+    // Add pushState to the current URL when component mounts
+    window.history.pushState(null, '', window.location.href);
+  
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+  
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const handleSaveDraft = async () => {
+    try {
+      setIsSaving(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setToastMessage('Please login to continue');
+        setShowToast(true);
+        return;
+      }
+  
+      const fileKey = location.state?.documentKey;
+      if (!fileKey) {
+        setToastMessage('Document key not found');
+        setShowToast(true);
+        return;
+      }
+  
+      // Format data for saving
+      const draftData = {
+        fileKey: fileKey,
+        updatedDraft: {
+          documentKey: fileKey,
+          documentTitle: documentName || location.state?.documentTitle,
+          documentUrls: documentPages,
+          fileUrl: documentPages[0], // Add fileUrl field (using first page URL)
+          recipients: recipients.filter(r => r.name || r.email).map(r => ({
+            email: r.email || '',
+            name: r.name || '',
+            status: 'pending'
+          })),
+          placeholders: placeholders.map((p, index) => ({
+            placeholderNumber: index + 1,
+            position: { 
+              x: p.xPercent.toString(), 
+              y: p.yPercent.toString() 
+            },
+            type: p.fieldType || 'text',
+            size: { 
+              width: p.widthPercent.toString(), 
+              height: p.heightPercent.toString() 
+            },
+            assignedTo: p.signer || '',
+            email: p.signer === 'You' ? userData?.user.email : 
+              recipients.find(r => r.name === p.signer)?.email || '',
+            pageNumber: p.pageIndex + 1
+          })),
+          emailData: {
+            subject: emailSubject,
+            message: emailMessage,
+            ccEmails,
+            bccEmails
+          }
+        }
+      };
+  
+      const response = await fetch('https://server.signbuddy.in/api/v1/drafts/update', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(draftData)
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save draft');
+      }
+  
+      setToastMessage('Draft saved successfully');
       setShowToast(true);
+      
+      if (navigateTo) {
+        navigate(navigateTo);
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      setToastMessage(error instanceof Error ? error.message : 'Failed to save draft');
+      setShowToast(true);
+    } finally {
+      setIsSaving(false);
+      setShowExitConfirm(false);
     }
-    setDocumentPages(imageUrls);
-  }, [imageUrls, navigate]);
+  };
+
+  const handleNavigation = (to: string, skipConfirm: boolean = false) => {
+    if (skipConfirm) {
+      navigate(to);
+      return;
+    }
+    setNavigateTo(to);
+    setShowExitConfirm(true);
+  };
+
   const getAvailableSigners = () => {
     const validRecipients = recipients.filter(
       (recipient) =>
@@ -97,6 +243,21 @@ const DocumentRecipients: React.FC = () => {
     if (isSignatory) signers.push("You");
     return signers;
   };
+
+  useEffect(() => {
+    if (!state?.documentUrls || state.documentUrls.length === 0) {
+      console.error('No document URLs found:', state);
+      navigate("/dashboard");
+      return;
+    }
+
+    // Set the document pages from the passed URLs
+    setDocumentPages(state.documentUrls);
+    // Set document name if available
+    if (state.documentTitle) {
+      setDocumentName(state.documentTitle);
+    }
+  }, [state, navigate]);
 
   const [previewPlaceholder, setPreviewPlaceholder] = useState<{
     type: "signature" | "date" | "text";
@@ -187,6 +348,16 @@ const DocumentRecipients: React.FC = () => {
     fetchUserData();
   }, []);
 
+  const CustomLink = ({ to, children }: { to: string; children: React.ReactNode }) => {
+    const handleClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setNavigateTo(to);
+      setShowExitConfirm(true);
+    };
+
+    return <Link to={to} onClick={handleClick}>{children}</Link>;
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -200,17 +371,6 @@ const DocumentRecipients: React.FC = () => {
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    // Simulate fetching the document name from an API or other source
-    const fetchDocumentName = async () => {
-      // Replace this with actual API call or logic to get the document name
-      const fetchedName = originalName; // Example name
-      setDocumentName(fetchedName);
-    };
-
-    fetchDocumentName();
   }, []);
 
   useEffect(() => {
@@ -230,8 +390,6 @@ const DocumentRecipients: React.FC = () => {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-
-  const [documentPages, setDocumentPages] = useState<string[]>([]);
 
   const handleImageClick = (
     pageIndex: number,
@@ -495,96 +653,85 @@ const DocumentRecipients: React.FC = () => {
     };
   }, []);
 
-  const handleUserSelect = (user: string) => {
-    setSelectedUser(user);
-  };
-
-  const handleFieldSelect = (type: "signature" | "date" | "text") => {
-    if (selectedUser) {
-      console.log("User:", selectedUser, "Field Type:", type);
-      // Logic to assign the selected user and field type to a placeholder
-      // Example: updatePlaceholderById(selectedPlaceholderId, { signer: selectedUser, fieldType: type });
-      setContextMenu(null); // Close the context menu after selection
-      setSelectedUser(null); // Reset selected user
-    }
-  };
-
   const handleEmailing = async () => {
     try {
-      // Get recipient emails and names
-      const emails: string[] = [];
-      const names: string[] = [];
-
-      recipients.forEach((recipient) => {
-        if (recipient.name.trim() && recipient.email.trim()) {
-          names.push(recipient.name.trim());
-          emails.push(recipient.email.trim());
-        }
-      });
-
-      // Add current user if they are a signatory
-      if (isSignatory && userData?.user.email) {
-        names.push("You");
-        emails.push(userData.user.email);
+      // Validate if there are any recipients or if user is signatory
+      if (!isSignatory && recipients.every(r => !r.name || !r.email)) {
+        setToastMessage("Please add at least one recipient before proceeding");
+        setShowToast(true);
+        return;
       }
 
-      // Format placeholders data
-      const placeholderData = placeholders.map((placeholder, index) => ({
-        placeholderNumber: index + 1,
-        position: {
-          x: placeholder.xPercent.toFixed(2) + "%",
-          y: placeholder.yPercent.toFixed(2) + "%",
-        },
-        type: placeholder.fieldType,
-        size: {
-          width: placeholder.widthPercent.toFixed(2) + "%",
-          height: placeholder.heightPercent.toFixed(2) + "%",
-        },
-        assignedTo: placeholder.signer,
-        email:
-          placeholder.signer === "You"
-            ? userData?.user.email
-            : recipients.find((r) => r.name === placeholder.signer)?.email ||
-              "",
-        pageNumber: placeholder.pageIndex + 1,
-      }));
+      // Validate if there are any placeholders
+      if (placeholders.length === 0) {
+        setToastMessage("Please add at least one placeholder before proceeding");
+        setShowToast(true);
+        return;
+      }
 
-      const payload = {
-        emails,
-        names,
-        placeholders: placeholderData,
-        fileKey: location.state?.fileKey || "", // Make sure fileKey is passed in navigation state
+      // Format data for email compose page
+      const emailData = {
+        recipients: recipients.filter(r => r.name && r.email).map(r => r.email),
+        documentName: documentName || originalName,
+        placeholderData: placeholders.map((placeholder, index) => ({
+          placeholderNumber: index + 1,
+          position: {
+            x: placeholder.xPercent.toFixed(2) + "%",
+            y: placeholder.yPercent.toFixed(2) + "%",
+          },
+          type: placeholder.fieldType,
+          size: {
+            width: placeholder.widthPercent.toFixed(2) + "%",
+            height: placeholder.heightPercent.toFixed(2) + "%",
+          },
+          assignedTo: placeholder.signer,
+          email: placeholder.signer === "You" ? userData?.user.email :
+            recipients.find((r) => r.name === placeholder.signer)?.email || "",
+          pageNumber: placeholder.pageIndex + 1,
+        })),
+        fileKey: location.state?.fileKey || "",
+        imageUrls: documentPages
       };
 
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        "https://server.signbuddy.in/api/v1/sendagreement",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+      // Navigate to email compose with data
+      navigate('/email-compose', {
+        state: {
+          recipients: recipients.filter(r => r.name && r.email).map(r => r.email),
+          documentName: documentName || originalName,
+          placeholderData: placeholders,
+          fileKey: location.state?.fileKey,
+          imageUrls: documentPages
         }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to send agreement");
-      }
-
-      // Show success toast and navigate to dashboard
-      setToastMessage("Agreement sent successfully!");
-      setShowToast(true);
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
+      });
+      handleNavigation('/email-compose', true);
     } catch (error) {
-      console.error("Error sending agreement:", error);
-      setToastMessage("Failed to send agreement. Please try again.");
+      console.error("Error preparing email data:", error);
+      setToastMessage("Failed to prepare email. Please try again.");
       setShowToast(true);
     }
   };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+  
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      setNavigateTo(window.location.pathname);
+      setShowExitConfirm(true);
+    };
+  
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+  
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   return (
     <>
@@ -597,6 +744,11 @@ const DocumentRecipients: React.FC = () => {
                 <Link
                   to="/dashboard"
                   className="inline-flex items-center gap-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg px-3 py-1.5 md:px-4 md:py-2 hover:border-white transition-colors text-sm md:text-base"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setNavigateTo("/dashboard");
+                    setShowExitConfirm(true);
+                  }}
                 >
                   <svg
                     className="w-4 h-4 md:w-5 md:h-5"
@@ -665,18 +817,30 @@ const DocumentRecipients: React.FC = () => {
                       </div>
                       <Link
                         to="/account-settings"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleNavigation('/account-settings');
+                        }}
                         className="block px-4 py-2 text-sm font-semibold text-gray-400 hover:text-white hover:bg-black/60"
                       >
                         Account Settings
                       </Link>
                       <Link
                         to="/billing"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleNavigation('/billing');
+                        }}
                         className="block px-4 py-2 text-sm font-semibold text-gray-400 hover:text-white hover:bg-black/60"
                       >
                         Billing
                       </Link>
                       <Link
                         to="/logout"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleNavigation('/logout');
+                        }}
                         className="block px-4 py-2 text-sm font-semibold text-red-500 hover:bg-black/60"
                       >
                         Log out
@@ -719,7 +883,7 @@ const DocumentRecipients: React.FC = () => {
                     <div className="w-8 h-8 rounded-full bg-[#DADADB] bg-opacity-20 flex items-center justify-center">
                       <div className="w-4 h-4 text-xs rounded-full border-2 border-white flex items-center justify-center text-white">
                         {hasProceeded &&
-                        (isSignatory || areAllFieldsValid(recipients))
+                          (isSignatory || areAllFieldsValid(recipients))
                           ? "✓"
                           : ""}
                       </div>
@@ -882,23 +1046,6 @@ const DocumentRecipients: React.FC = () => {
                     Proceed →
                   </button>
                 </div>
-                {/* Credits Info */}
-                <div className="mt-4 flex items-center gap-2 text-sm text-gray-400">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  Each person would cost you 10 Credits
-                </div>
                 {/* Context Menu */}
                 {contextMenu && (
                   <div
@@ -1012,9 +1159,8 @@ const DocumentRecipients: React.FC = () => {
                   <div className="fixed bottom-4 right-4 z-50 md:hidden">
                     <button
                       onClick={handleFabClick}
-                      className={`relative w-14 h-14 rounded-full bg-black text-white flex items-center justify-center border-4 border-white/40 transition-transform transform ${
-                        isFabOpen ? "rotate-45" : ""
-                      }`}
+                      className={`relative w-14 h-14 rounded-full bg-black text-white flex items-center justify-center border-4 border-white/40 transition-transform transform ${isFabOpen ? "rotate-45" : ""
+                        }`}
                     >
                       {isFabOpen ? (
                         <svg
@@ -1212,7 +1358,7 @@ const DocumentRecipients: React.FC = () => {
                       onImageClick={handleImageClick}
                       onUpdatePlaceholder={updatePlaceholderById}
                       onDeletePlaceholder={deletePlaceholder}
-                      users={users}
+                      users={getAvailableSigners()}
                       onPlaceholderDrop={handlePlaceholderDrop}
                       selectedPlaceholderType={selectedPlaceholderType}
                     />
@@ -1262,6 +1408,34 @@ const DocumentRecipients: React.FC = () => {
           onClose={() => setShowToast(false)}
           duration={toastDuration}
         />
+      )}
+      {showExitConfirm && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-[#111111] rounded-xl border border-white/30 p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold mb-4">Save Changes?</h3>
+            <p className="text-gray-400 mb-6">
+              Would you like to save your changes before leaving? You can continue editing this document later.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  if (navigateTo) navigate(navigateTo);
+                }}
+                className="flex-1 px-4 py-2 border border-white/30 rounded-lg hover:bg-white/10"
+              >
+                Don't Save
+              </button>
+              <button
+                onClick={handleSaveDraft}
+                disabled={isSaving}
+                className="flex-1 px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-200 disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Save & Exit'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

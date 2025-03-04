@@ -165,7 +165,9 @@ function App() {
       } />
       <Route path="/email-compose" element={
         <ProtectedRoute>
-          <Layout showNavbar={true} showFooter={true} isAuthenticated={true}><EmailComposePage /></Layout>
+          <Layout showNavbar={true} showFooter={true} isAuthenticated={true}>
+            <EmailComposePage />
+          </Layout>
         </ProtectedRoute>
       } />
       <Route
@@ -192,7 +194,7 @@ function App() {
           <Layout showNavbar={true} showFooter={true} isAuthenticated={true}><Document /></Layout>
         </ProtectedRoute>
       } />
-      <Route path="/document-recipients" element={
+      <Route path="/document/recipients" element={
         <ProtectedRoute>
           <Layout showNavbar={false} showFooter={false} isAuthenticated={true}><DocumentRecipients /></Layout>
         </ProtectedRoute>

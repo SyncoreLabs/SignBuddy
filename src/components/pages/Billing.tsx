@@ -5,6 +5,10 @@ import infinity from '../../assets/images/infinite.png';
 
 const Billing = () => {
   usePageTitle('Billing');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const totalItems = 15; // Replace with actual total count from your data
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
   const [activeSubscription, setActiveSubscription] = useState<{
     isActive: boolean;
     expiryDate?: string;
@@ -19,6 +23,14 @@ const Billing = () => {
       setActiveSubscription(JSON.parse(subscriptionStatus));
     }
   }, []);
+
+  const handlePageChange = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+    } else if (direction === 'next' && currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
 
   return (
     <div className="bg-black min-h-[calc(100vh-64px)]">
@@ -83,22 +95,26 @@ const Billing = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-                <div className="flex items-center gap-2">
-                  Rows per page
-                  <select className="bg-transparent border border-white/30 rounded px-2 py-1">
-                    <option>05</option>
-                  </select>
-                </div>
+              <div className="flex items-center justify-end mt-4 text-sm text-gray-400">
                 <div className="flex items-center gap-4">
-                  <span>Page 1 of 1</span>
+                  <span>Page {currentPage} of {totalPages}</span>
                   <div className="flex gap-2">
-                    <button className="p-1 rounded border border-white/30">
+                    <button
+                      onClick={() => handlePageChange('prev')}
+                      disabled={currentPage === 1}
+                      className={`p-1 rounded border border-white/30 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+                        }`}
+                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
-                    <button className="p-1 rounded border border-white/30">
+                    <button
+                      onClick={() => handlePageChange('next')}
+                      disabled={currentPage === totalPages}
+                      className={`p-1 rounded border border-white/30 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+                        }`}
+                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
