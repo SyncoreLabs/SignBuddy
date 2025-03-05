@@ -1,4 +1,4 @@
-import React, { useState , useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import lightningIcon from '../../assets/images/credits-icon.png';
 
@@ -21,6 +21,33 @@ const Pricing: React.FC = () => {
     }
   }, []);
 
+  const [plans, setPlans] = useState<{
+    creditPackages: Array<{ credits: number; price: number }>;
+    subscriptionPlans: Array<{ planType: string; price: number; description: string }>;
+  } | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch('https://server.signbuddy.in/api/v1/getplans');
+        if (!response.ok) throw new Error('Failed to fetch plans');
+
+        const data = await response.json();
+        if (data.success && data.plans) {
+          setPlans(data.plans);
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, []);
+
   const renderActionButton = (price: string) => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
 
@@ -31,6 +58,7 @@ const Pricing: React.FC = () => {
         </div>
       );
     }
+
 
     return (
       <Link
@@ -133,9 +161,9 @@ const Pricing: React.FC = () => {
     <div className="bg-black min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-5">
         <div className="mb-6">
-        <h1 className="text-3xl md:text-5xl font-bold mb-4">Our Pricing Plans</h1>
+          <h1 className="text-3xl md:text-5xl font-bold mb-4">Our Pricing Plans</h1>
           <p className="text-gray-400 max-w-[500px]">
-            Choose the perfect plan for your needs. Whether you're an individual or a team, 
+            Choose the perfect plan for your needs. Whether you're an individual or a team,
             we have flexible options to help you sign and manage documents efficiently.
           </p>
         </div>
@@ -229,12 +257,12 @@ const Pricing: React.FC = () => {
                       className="w-full py-3 flex items-center justify-between text-left"
                       onClick={() => setActiveFaq(activeFaq === 4 ? null : 4)}
                     >
-                      <span className="font-bold">Can I share credits with my team?</span>
+                      <span className="font-bold">What happens to unused credits?</span>
                       <span className="text-2xl text-gray-400">{activeFaq === 4 ? '-' : '+'}</span>
                     </button>
                     {activeFaq === 4 && (
                       <div className="pt-2 text-gray-400">
-                        Yes, if you're on a team plan, credits can be shared among team members. Administrators can manage and allocate credits as needed.
+                        Your unused credits remain in your account indefinitely and never expire. You can use them anytime for future document signings. We believe in giving you full control over your purchased credits.
                       </div>
                     )}
                   </div>
@@ -246,72 +274,42 @@ const Pricing: React.FC = () => {
               </div>
 
               <div className="w-full md:max-w-xl space-y-4">
-                {/* Basic Plan */}
-                <div className="bg-black rounded-lg border border-white/30 p-5">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-1">Basic</h3>
-                      <p className="text-gray-400 text-sm">For individuals who needs just the required amount of features.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <img src={lightningIcon} alt="Basic" className="w-5 h-5" />
-                      <div>
-                        <span className="text-3xl font-bold">50</span>
-                        <span className="text-gray-400 ml-1 text-sm">Credits</span>
-                      </div>
-                    </div>
-                  </div>
-                  {renderActionButton('₹199')}
-                </div>
+                {!isLoading && plans?.creditPackages.map((plan, index) => {
+                  const planNames = ['Basic', 'Standard', 'Premium'];
+                  const discounts = [null, '12% off', '16% off'];
+                  const discountColors = [null, 'bg-yellow-400', 'bg-emerald-400'];
 
-                {/* Standard Plan */}
-                <div className="bg-black rounded-lg border border-white/30 p-5 relative">
-                  <div className="absolute -top-3 left-4 bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-medium">
-                    12% off
-                  </div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-1">Standard</h3>
-                      <p className="text-gray-400 text-sm">For individuals who needs just the required amount of features.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <img src={lightningIcon} alt="Standard" className="w-5 h-5" />
-                      <div>
-                        <span className="text-3xl font-bold">100</span>
-                        <span className="text-gray-400 ml-1 text-sm">Credits</span>
+                  return (
+                    <div key={index} className="bg-black rounded-lg border border-white/30 p-5 relative">
+                      {discounts[index] && (
+                        <div className={`absolute -top-3 left-4 ${discountColors[index]} text-black px-3 py-1 rounded-full text-sm font-medium`}>
+                          {discounts[index]}
+                        </div>
+                      )}
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-xl font-semibold mb-1">{planNames[index]}</h3>
+                          <p className="text-gray-400 text-sm">For individuals who needs just the required amount of features.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <img src={lightningIcon} alt={planNames[index]} className="w-5 h-5" />
+                          <div>
+                            <span className="text-3xl font-bold">{plan.credits}</span>
+                            <span className="text-gray-400 ml-1 text-sm">Credits</span>
+                          </div>
+                        </div>
                       </div>
+                      {renderActionButton(`₹${plan.price}`)}
                     </div>
-                  </div>
-                  {renderActionButton('₹349')}
-                </div>
-
-                {/* Premium Plan */}
-                <div className="bg-black rounded-lg border border-white/30 p-5 relative">
-                  <div className="absolute -top-3 left-4 bg-emerald-400 text-black px-3 py-1 rounded-full text-sm font-medium">
-                    16% off
-                  </div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-1">Premium</h3>
-                      <p className="text-gray-400 text-sm">For individuals who needs just the required amount of features.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <img src={lightningIcon} alt="Premium" className="w-5 h-5" />
-                      <div>
-                        <span className="text-3xl font-bold">300</span>
-                        <span className="text-gray-400 ml-1 text-sm">Credits</span>
-                      </div>
-                    </div>
-                  </div>
-                  {renderActionButton('₹899')}
-                </div>
+                  );
+                })}
               </div>
             </>
           ) : (
             <>
               <div className="w-full md:flex-1">
-                <p className="text-gray-400 mb-2">For Organizations/Teams</p>
-                <h2 className="text-4xl font-bold mb-8">Enterprise grade features</h2>
+                <p className="text-gray-400 mb-2">Truly Unlimited</p>
+                <h2 className="text-4xl font-bold mb-8">For Growing Businesses</h2>
 
                 <div className="space-y-5 max-w-lg">
                   <div>
@@ -324,7 +322,7 @@ const Pricing: React.FC = () => {
                     </button>
                     {activeFaq === 0 && (
                       <div className="pt-2 text-gray-400">
-                        Our subscription plan includes unlimited document creations, AI-powered features, unlimited emails and reminders, and access to all document templates.
+                        Our subscription plan includes unlimited document creations, unlimited reminders.
                       </div>
                     )}
                   </div>
@@ -334,12 +332,12 @@ const Pricing: React.FC = () => {
                       className="w-full py-3 flex items-center justify-between text-left"
                       onClick={() => setActiveFaq(activeFaq === 1 ? null : 1)}
                     >
-                      <span className="font-bold">How many team members can I add?</span>
+                      <span className="font-bold">What features are included?</span>
                       <span className="text-2xl text-gray-400">{activeFaq === 1 ? '-' : '+'}</span>
                     </button>
                     {activeFaq === 1 && (
                       <div className="pt-2 text-gray-400">
-                        You can add unlimited team members to your organization's account. Each member will have their own login credentials and access levels.
+                        Our subscription includes unlimited document processing, unlimited reminders, priority customer support.
                       </div>
                     )}
                   </div>
@@ -369,7 +367,7 @@ const Pricing: React.FC = () => {
                     </button>
                     {activeFaq === 3 && (
                       <div className="pt-2 text-gray-400">
-                        No, with the subscription plan you get unlimited document creations and signatures. There are no hidden limits or restrictions.
+                        No, with the subscription plan you can send unlimited document. There are no hidden limits or restrictions.
                       </div>
                     )}
                   </div>
@@ -379,16 +377,15 @@ const Pricing: React.FC = () => {
                       className="w-full py-3 flex items-center justify-between text-left"
                       onClick={() => setActiveFaq(activeFaq === 4 ? null : 4)}
                     >
-                      <span className="font-bold">Do you offer custom solutions?</span>
+                      <span className="font-bold">What happens after subscription ends?</span>
                       <span className="text-2xl text-gray-400">{activeFaq === 4 ? '-' : '+'}</span>
                     </button>
                     {activeFaq === 4 && (
                       <div className="pt-2 text-gray-400">
-                        Yes, we can provide custom solutions for enterprises with specific requirements. Contact our sales team for more details.
-                      </div>
+                        When your subscription ends, you'll have read-only access to your documents. To continue sending and managing new documents, simply renew your subscription or purchase some credits and if you don't remember you will also get 30 free credits for every month.                      </div>
                     )}
                   </div>
-                  <div/>
+                  <div />
                 </div>
                 <p className="text-sm text-gray-400 mt-4">
                   Still have any doubts or questions? Please Checkout FAQs
@@ -396,14 +393,14 @@ const Pricing: React.FC = () => {
               </div>
 
               <div className="w-full md:max-w-xl">
-              <div className="bg-black rounded-lg border border-white/30 p-5 md:p-8">
+                <div className="bg-black rounded-lg border border-white/30 p-5 md:p-8">
                   <div className="mb-4">
-                    <h3 className="text-4xl font-bold mb-2">For Organizations/Teams</h3>
-                    <p className="text-gray-400">For teams who needs multiple documents and will have multiple users to manage legalities</p>
+                    <h3 className="text-4xl font-bold mb-2">Truly Unlimited</h3>
+                    <p className="text-gray-400">Perfect for businesses that need unlimited document processing</p>
                   </div>
-                  
+
                   <div className="mb-6">
-                  <div className="flex items-center justify-end gap-2 mb-4 px-2 md:px-0">
+                    <div className="flex items-center justify-end gap-2 mb-4 px-2 md:px-0">
                       <span className={`${!isYearly ? 'text-white' : 'text-gray-400'}`}>Monthly</span>
                       <button
                         className="relative w-12 h-6 rounded-full bg-gray-600"
@@ -413,118 +410,124 @@ const Pricing: React.FC = () => {
                       </button>
                       <span className={`${isYearly ? 'text-white' : 'text-gray-400'}`}>Yearly</span>
                     </div>
+                    {/* Replace this pricing section */}
                     <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-bold">₹{isYearly ? '599' : '699'}</span>
-                      <span className="text-gray-400">Per {isYearly ? 'month, billed yearly' : 'month'}</span>
+                      <span className="text-5xl font-bold">
+                        ₹{isYearly
+                          ? plans?.subscriptionPlans.find(p => p.planType === 'yearly')?.price
+                          : plans?.subscriptionPlans.find(p => p.planType === 'monthly')?.price}
+                      </span>
+                      <span className="text-gray-400">
+                        Per {isYearly ? 'month, billed yearly' : 'month'}
+                      </span>
                     </div>
                     {isYearly && (
                       <div className="mt-2 text-sm text-emerald-400">Save 15% with yearly billing</div>
                     )}
                   </div>
-
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-4 mb-6">
                     <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Unlimited Documents</span>
+                      <span>Unlimited document creations</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Unlimited Emails and Remainders</span>
+                      <span>Unlimited document creations</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Fixed Monthly Cost</span>
+                      <span>AI-powered features</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Subscription users will get early access to upcoming features</span>
+                      <span>Unlimited emails and reminders</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Priority Support</span>
+                      <span>Access to all document templates</span>
                     </div>
                   </div>
 
-                  {renderActionButton(`₹${isYearly ? '599' : '699'}`)}
+                  {renderActionButton(isYearly ? '₹599/mo' : '₹699/mo')}
                 </div>
               </div>
             </>
           )}
         </div>
+      </div>
 
-        {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto mt-40 mb-40">
-          <h2 className="text-5xl font-bold text-center mb-2">Frequently asked questions</h2>
-          <p className="text-gray-400 text-center mb-8 mx-4 md:mx-[100px]">
-            These are the most commonly asked questions about SignFastly. Can't find what you are looking for? Chat with our friendly team!
-          </p>
+      {/* FAQ Section */}
+      <div className="max-w-3xl mx-auto mt-40 mb-40">
+        <h2 className="text-5xl font-bold text-center mb-2">Frequently asked questions</h2>
+        <p className="text-gray-400 text-center mb-8 mx-4 md:mx-[100px]">
+          These are the most commonly asked questions about SignFastly. Can't find what you are looking for? Chat with our friendly team!
+        </p>
 
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
-            <button 
-              className={`px-4 py-2 rounded-lg ${activeCategory === 'general' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
-              onClick={() => setActiveCategory('general')}
-            >
-              General
-            </button>
-            <button 
-              className={`px-4 py-2 rounded-lg ${activeCategory === 'credits' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
-              onClick={() => setActiveCategory('credits')}
-            >
-              Credits
-            </button>
-            <button 
-              className={`px-4 py-2 rounded-lg ${activeCategory === 'payments' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
-              onClick={() => setActiveCategory('payments')}
-            >
-              Payments
-            </button>
-            <button 
-              className={`px-4 py-2 rounded-lg ${activeCategory === 'platform' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
-              onClick={() => setActiveCategory('platform')}
-            >
-              Platform related
-            </button>
-          </div>
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
+          <button
+            className={`px-4 py-2 rounded-lg ${activeCategory === 'general' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
+            onClick={() => setActiveCategory('general')}
+          >
+            General
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg ${activeCategory === 'credits' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
+            onClick={() => setActiveCategory('credits')}
+          >
+            Credits
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg ${activeCategory === 'payments' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
+            onClick={() => setActiveCategory('payments')}
+          >
+            Payments
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg ${activeCategory === 'platform' ? 'bg-white text-black' : 'bg-transparent text-gray-400 border border-white/30'}`}
+            onClick={() => setActiveCategory('platform')}
+          >
+            Platform related
+          </button>
+        </div>
 
-          {/* Bottom FAQ Section */}
-          <div className="space-y-4">
-            {faqs[activeCategory as keyof typeof faqs].map((faq, index) => (
-              <div key={index} className="overflow-hidden">
-                <button
-                  className="w-full px-6 py-4 flex items-center justify-between text-left"
-                  onClick={() => setActiveBottomFaq(activeBottomFaq === index ? null : index)}
+        {/* Bottom FAQ Section */}
+        <div className="space-y-4">
+          {faqs[activeCategory as keyof typeof faqs].map((faq, index) => (
+            <div key={index} className="overflow-hidden">
+              <button
+                className="w-full px-6 py-4 flex items-center justify-between text-left"
+                onClick={() => setActiveBottomFaq(activeBottomFaq === index ? null : index)}
+              >
+                <span>{faq.question}</span>
+                <svg
+                  className={`w-5 h-5 transform transition-transform ${activeBottomFaq === index ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <span>{faq.question}</span>
-                  <svg
-                    className={`w-5 h-5 transform transition-transform ${activeBottomFaq === index ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {activeBottomFaq === index && (
-                  <div className="px-6 py-4 text-gray-400">
-                    {faq.answer}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {activeBottomFaq === index && (
+                <div className="px-6 py-4 text-gray-400">
+                  {faq.answer}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

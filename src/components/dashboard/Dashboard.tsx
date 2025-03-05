@@ -109,7 +109,7 @@ const Dashboard: React.FC = () => {
   );
   const [documentTypeToDelete, setDocumentTypeToDelete] = useState<'agreement' | 'draft' | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-const documentsPerPage = 10; 
+  const documentsPerPage = 10;
   // Add this with other state declarations
   const [activeTab, setActiveTab] = useState<"your" | "received">(() => {
     const savedTab = localStorage.getItem("dashboardActiveTab");
@@ -150,7 +150,7 @@ const documentsPerPage = 10;
 
   const PaginationControls = ({ totalDocuments }: { totalDocuments: number }) => {
     const totalPages = Math.ceil(totalDocuments / documentsPerPage);
-  
+
 
   };
 
@@ -754,11 +754,11 @@ const documentsPerPage = 10;
                                 ))}
                               </div>
                             )}
-                            </div>
-                          ) : (
-                            "Status"
-                          )}
-                        </th>
+                          </div>
+                        ) : (
+                          "Status"
+                        )}
+                      </th>
                       <th className="text-left py-3 px-4 text-gray-400">
                         Recipients
                       </th>
@@ -771,7 +771,7 @@ const documentsPerPage = 10;
                     </tr>
                   </thead>
                   <tbody>
-                  {paginatedDocuments.map((doc, index) => (
+                    {paginatedDocuments.map((doc, index) => (
                       <tr key={doc.documentKey} className="border-b border-white/10">
                         {activeTab === "your" ? (
                           <>
@@ -921,53 +921,38 @@ const documentsPerPage = 10;
                         ) : (
                           <>
                             <td className="py-4 px-4">
-                              <span
-                                className="inline-block max-w-[200px] truncate"
-                                title={doc.title}
-                              >
+                              <span className="inline-block max-w-[200px] truncate" title={doc.title}>
                                 {truncateText(doc.title)}
                               </span>
                             </td>
                             <td className="py-4 px-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full overflow-hidden">
-                                  <img
-                                    src={
-                                      doc.recipients[0]?.recipientsAvatar || ""
-                                    }
-                                    alt={doc.recipients[0]?.name || ""}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                                <span className="text-gray-400">
-                                  {doc.recipients[0]?.name || "Unknown"}
-                                </span>
+                              <div className="flex items-center gap-2 text-gray-400">
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {doc.receivedAt || 'Recently'}
                               </div>
                             </td>
                             <td className="py-4 px-4">
-                              <div className="flex items-center gap-2 text-gray-400">
-                                <svg
-                                  className="w-4 h-4"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d={
-                                      doc.status === "completed"
-                                        ? "M5 13l4 4L19 7"
-                                        : "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    }
-                                  />
-                                </svg>
-                                {doc.status}
+                              <div className="flex">
+                                {doc.recipients.slice(0, 3).map((recipient, idx) => (
+                                  <div
+                                    key={recipient.email}
+                                    className={`w-8 h-8 rounded-full border-2 border-black overflow-hidden ${idx > 0 ? "-ml-3" : ""}`}
+                                  >
+                                    <img
+                                      src={recipient.recipientsAvatar}
+                                      alt={recipient.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                                {doc.recipients.length > 3 && (
+                                  <div className="w-8 h-8 rounded-full border-2 border-black bg-gray-800 flex items-center justify-center text-xs text-white -ml-3">
+                                    +{doc.recipients.length - 3}
+                                  </div>
+                                )}
                               </div>
-                            </td>
-                            <td className="py-4 px-4 text-gray-400">
-                              {doc.recipients[0]?.updates || "No updates"}
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex gap-2">
@@ -975,34 +960,30 @@ const documentsPerPage = 10;
                                   onClick={() => handlePreviewDocument(doc)}
                                   className="flex items-center gap-1 px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
                                 >
-                                  <svg
-                                    className="w-4 h-4"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                    />
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                    />
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                   </svg>
                                   View
                                 </button>
                                 {doc.status.toLowerCase() === "pending" && (
                                   <button
-                                    onClick={() =>
-                                      navigate(`/sign/${doc.documentKey}`, {
-                                        state: { agreement: doc }
-                                      })
-                                    }
+                                    onClick={() => navigate(`/sign/${doc.documentKey}`, {
+                                      state: {
+                                        agreement: {
+                                          ...doc,
+                                          placeholders: doc.placeholders.map(p => ({
+                                            position: p.position,
+                                            size: p.size,
+                                            placeholderNumber: p.placeholderNumber,
+                                            type: p.type,
+                                            assignedTo: p.assignedTo,
+                                            email: p.email,
+                                            pageNumber: p.pageNumber
+                                          }))
+                                        }
+                                      }
+                                    })}
                                     className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
                                   >
                                     Sign
@@ -1010,18 +991,28 @@ const documentsPerPage = 10;
                                 )}
                               </div>
                             </td>
+                            <td className="py-4 px-4 text-gray-400">
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="truncate max-w-[250px]">
+                                  {doc.lastUpdate || 'No recent updates'}
+                                </span>
+                              </div>
+                            </td>
                           </>
                         )}
                       </tr>
                     ))}
                   </tbody>
-                  <PaginationControls 
-  totalDocuments={
-    activeTab === "your" 
-      ? filteredDocuments.length 
-      : filteredReceivedDocuments.length
-  } 
-/>
+                  <PaginationControls
+                    totalDocuments={
+                      activeTab === "your"
+                        ? filteredDocuments.length
+                        : filteredReceivedDocuments.length
+                    }
+                  />
                 </table>
               )}
             </div>

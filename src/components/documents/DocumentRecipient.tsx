@@ -721,11 +721,12 @@ const [fileKey, setfileKey] = useState<string>("");
                 width: `${p.widthPercent}%`,
                 height: `${p.heightPercent}%`
               },
-              type: p.fieldType || "signature",
-              assignedTo: p.signer || "",
+              type: p.fieldType,
+              assignedTo: p.signer,
               pageNumber: p.pageIndex + 1,
-              email: allRecipients.find(r => r.name === p.signer)?.email || ""
-            })),
+              email: p.signer === "You" 
+              ? userData?.user.email 
+              : allRecipients.find(r => r.name === p.signer)?.email            })),
             fileKey: fileKey, // Explicitly include the fileKey
             emailSubject: emailSubject || `Please sign ${documentName || documentTitle}`,
             emailMessage: emailMessage || "",

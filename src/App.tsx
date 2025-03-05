@@ -184,9 +184,12 @@ function App() {
           </ProtectedRoute>
         }
       />
+      {/* ... other routes ... */}
       <Route path="/email-success" element={
         <ProtectedRoute>
-          <Layout showNavbar={true} showFooter={true} isAuthenticated={true}><EmailSuccessPage /></Layout>
+          <Layout showNavbar={true} showFooter={true} isAuthenticated={true}>
+            <EmailSuccessPage />
+          </Layout>
         </ProtectedRoute>
       } />
       <Route path="/document" element={

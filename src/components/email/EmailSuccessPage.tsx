@@ -1,9 +1,15 @@
 import React from 'react';
-
-// At the top of the file, add the import
+import { useLocation, useNavigate } from 'react-router-dom';
 import pdfIcon from '../../assets/images/PDF.png';
 
 const EmailSuccessPage: React.FC = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const documentTitle = location.state?.documentTitle;
+
+    const handleClose = () => {
+        navigate('/dashboard');
+    };
     return (
         <div className=" bg-black overflow-hidden">
             <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
@@ -70,11 +76,15 @@ const EmailSuccessPage: React.FC = () => {
                     </div>
 
                     {/* Success Message */}
+                    {/* Header with close button */}
                     <div className="bg-black p-4 sm:p-6 rounded-lg w-[90%] sm:max-w-md border border-white/30 relative">
                         {/* Header with close button */}
                         <div className="flex items-center justify-between mb-2">
                             <h2 className="text-xl sm:text-xl font-semibold">Your document is ready</h2>
-                            <button className="text-white/60 hover:text-white">
+                            <button
+                                onClick={handleClose}
+                                className="text-white/60 hover:text-white"
+                            >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
@@ -99,17 +109,7 @@ const EmailSuccessPage: React.FC = () => {
                         <div className="flex flex-col p-3 bg-[#111] rounded-lg">
                             <div className="flex items-center justify-between">
                                 <div className="flex flex-col">
-                                    <span className="text-sm text-white">SCP2_Developer_Agreement</span>
-                                    <button className="text-xs text-gray-400 hover:text-white underline text-left">
-                                        Click to download
-                                    </button>
-                                </div>
-                                <div className="flex items-center">
-                                    <img 
-                                        src={pdfIcon} 
-                                        alt="PDF file" 
-                                        className="w-10 h-10 object-contain"
-                                    />
+                                    <span className="text-sm text-white">{documentTitle}</span>
                                 </div>
                             </div>
                         </div>

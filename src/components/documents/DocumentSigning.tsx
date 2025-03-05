@@ -106,6 +106,7 @@ const SignaturePopup: React.FC<SignaturePopupProps> = ({
 
   if (type === "text") {
     return (
+
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-black rounded-lg w-[400px] p-4 border border-white/20">
           <h2 className="text-white text-lg mb-4">Enter Text</h2>
@@ -145,31 +146,28 @@ const SignaturePopup: React.FC<SignaturePopupProps> = ({
         <div className="flex justify-between mb-4">
           <div className="flex w-full gap-2">
             <button
-              className={`flex-1 py-2 rounded-lg text-lg transition-colors ${
-                activeTab === "text"
+              className={`flex-1 py-2 rounded-lg text-lg transition-colors ${activeTab === "text"
                   ? "bg-white text-black"
                   : "text-gray-500 hover:text-white"
-              }`}
+                }`}
               onClick={() => setActiveTab("text")}
             >
               Text
             </button>
             <button
-              className={`flex-1 py-2 rounded-lg text-lg transition-colors ${
-                activeTab === "draw"
+              className={`flex-1 py-2 rounded-lg text-lg transition-colors ${activeTab === "draw"
                   ? "bg-white text-black"
                   : "text-gray-500 hover:text-white"
-              }`}
+                }`}
               onClick={() => setActiveTab("draw")}
             >
               Draw
             </button>
             <button
-              className={`flex-1 py-2 rounded-lg text-lg transition-colors ${
-                activeTab === "upload"
+              className={`flex-1 py-2 rounded-lg text-lg transition-colors ${activeTab === "upload"
                   ? "bg-white text-black"
                   : "text-gray-500 hover:text-white"
-              }`}
+                }`}
               onClick={() => setActiveTab("upload")}
             >
               Upload
@@ -214,61 +212,55 @@ const SignaturePopup: React.FC<SignaturePopupProps> = ({
 
               <div className="grid bg-white p-1 rounded-lg grid-cols-2 gap-3">
                 <button
-                  className={`p-3 bg-white rounded-lg text-black ${
-                    selectedFont === "font-dancing-script"
+                  className={`p-3 bg-white rounded-lg text-black ${selectedFont === "font-dancing-script"
                       ? "border-2 border-black"
                       : "border-2"
-                  } font-dancing-script`}
+                    } font-dancing-script`}
                   onClick={() => setSelectedFont("font-dancing-script")}
                 >
                   {signatureText || "Bharath Chandra"}
                 </button>
                 <button
-                  className={`p-3 bg-white rounded-lg text-black ${
-                    selectedFont === "font-great-vibes"
+                  className={`p-3 bg-white rounded-lg text-black ${selectedFont === "font-great-vibes"
                       ? "border-2 border-black"
                       : "border-2"
-                  } font-great-vibes`}
+                    } font-great-vibes`}
                   onClick={() => setSelectedFont("font-great-vibes")}
                 >
                   {signatureText || "Bharath Chandra"}
                 </button>
                 <button
-                  className={`p-3 bg-white rounded-lg text-black ${
-                    selectedFont === "font-alex-brush"
+                  className={`p-3 bg-white rounded-lg text-black ${selectedFont === "font-alex-brush"
                       ? "border-2 border-black"
                       : "border-2"
-                  } font-alex-brush`}
+                    } font-alex-brush`}
                   onClick={() => setSelectedFont("font-alex-brush")}
                 >
                   {signatureText || "Bharath Chandra"}
                 </button>
                 <button
-                  className={`p-3 bg-white rounded-lg text-black ${
-                    selectedFont === "font-sacramento"
+                  className={`p-3 bg-white rounded-lg text-black ${selectedFont === "font-sacramento"
                       ? "border-2 border-black"
                       : "border-2"
-                  } font-sacramento`}
+                    } font-sacramento`}
                   onClick={() => setSelectedFont("font-sacramento")}
                 >
                   {signatureText || "Bharath Chandra"}
                 </button>
                 <button
-                  className={`p-3 bg-white rounded-lg text-black ${
-                    selectedFont === "font-allura"
+                  className={`p-3 bg-white rounded-lg text-black ${selectedFont === "font-allura"
                       ? "border-2 border-black"
                       : "border-2"
-                  } font-allura`}
+                    } font-allura`}
                   onClick={() => setSelectedFont("font-allura")}
                 >
                   {signatureText || "Bharath Chandra"}
                 </button>
                 <button
-                  className={`p-3 bg-white rounded-lg text-black ${
-                    selectedFont === "font-petit-formal"
+                  className={`p-3 bg-white rounded-lg text-black ${selectedFont === "font-petit-formal"
                       ? "border-2 border-black"
                       : "border-2"
-                  } font-petit-formal`}
+                    } font-petit-formal`}
                   onClick={() => setSelectedFont("font-petit-formal")}
                 >
                   {signatureText || "Bharath Chandra"}
@@ -314,27 +306,24 @@ const SignaturePopup: React.FC<SignaturePopupProps> = ({
                   <div className="flex items-center m-3 gap-2">
                     <span className="text-gray-400">Colors</span>
                     <button
-                      className={`w-4 h-4 rounded-full bg-black border border-white/20 ${
-                        selectedColor === "#000000"
+                      className={`w-4 h-4 rounded-full bg-black border border-white/20 ${selectedColor === "#000000"
                           ? "ring-2 ring-white ring-offset-2 ring-offset-[#242424]"
                           : ""
-                      }`}
+                        }`}
                       onClick={() => setSelectedColor("#000000")}
                     />
                     <button
-                      className={`w-4 h-4 rounded-full bg-red-500 ${
-                        selectedColor === "#EF4444"
+                      className={`w-4 h-4 rounded-full bg-red-500 ${selectedColor === "#EF4444"
                           ? "ring-2 ring-white ring-offset-2 ring-offset-[#242424]"
                           : ""
-                      }`}
+                        }`}
                       onClick={() => setSelectedColor("#EF4444")}
                     />
                     <button
-                      className={`w-4 h-4 rounded-full bg-green-500 ${
-                        selectedColor === "#22C55E"
+                      className={`w-4 h-4 rounded-full bg-green-500 ${selectedColor === "#22C55E"
                           ? "ring-2 ring-white ring-offset-2 ring-offset-[#242424]"
                           : ""
-                      }`}
+                        }`}
                       onClick={() => setSelectedColor("#22C55E")}
                     />
                   </div>
@@ -528,12 +517,17 @@ const DocumentSigning: React.FC = () => {
   const [signatureData, setSignatureData] = useState<{ [key: number]: string }>(
     {}
   );
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>(
-    userData?.user.email
-  );
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const location = useLocation();
   const navigate = useNavigate();
   const agreement = location.state?.agreement as Agreement;
+
+  useEffect(() => {
+    if (userData?.user.email) {
+      setCurrentUserEmail(userData.user.email);
+    }
+  }, [userData]);
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -644,17 +638,15 @@ const DocumentSigning: React.FC = () => {
       <button
         key={placeholder.placeholderNumber}
         style={style}
-        className={`${
-          !signature
-            ? `border-2 ${
-                placeholder.type === "signature"
-                  ? "border-blue-500"
-                  : placeholder.type === "date"
-                  ? "border-green-500"
-                  : "border-purple-500"
-              } bg-black/80 backdrop-blur-sm`
+        className={`${!signature
+            ? `border-2 ${placeholder.type === "signature"
+              ? "border-blue-500"
+              : placeholder.type === "date"
+                ? "border-green-500"
+                : "border-purple-500"
+            } bg-black/80 backdrop-blur-sm`
             : ""
-        } rounded hover:border-4 transition-colors flex flex-col items-center justify-center overflow-hidden`}
+          } rounded hover:border-4 transition-colors flex flex-col items-center justify-center overflow-hidden`}
         onClick={() => setSelectedPlaceholder(placeholder)}
       >
         {signature ? (
@@ -674,30 +666,28 @@ const DocumentSigning: React.FC = () => {
                 alt="Signature"
                 className="absolute inset-0 m-auto max-w-full max-h-full object-contain"
                 style={{
-                  transform: `scale(${JSON.parse(signature).zoom}) rotate(${
-                    JSON.parse(signature).rotation
-                  }deg)`,
+                  transform: `scale(${JSON.parse(signature).zoom}) rotate(${JSON.parse(signature).rotation
+                    }deg)`,
                   transformOrigin: "center",
                 }}
               />
             </div>
           ) : (
             <span
-              className={`w-[95%] text-center text-black ${
-                typeof signature === "string" && signature.startsWith("{")
+              className={`w-[95%] text-center text-black ${typeof signature === "string" && signature.startsWith("{")
                   ? JSON.parse(signature).font
                   : ""
-              }`}
+                }`}
               style={{
                 fontSize:
                   placeholder.type === "date"
                     ? calculateDateFontSize(signature)
                     : calculateFontSize(
-                        typeof signature === "string" &&
-                          signature.startsWith("{")
-                          ? JSON.parse(signature).text
-                          : signature
-                      ),
+                      typeof signature === "string" &&
+                        signature.startsWith("{")
+                        ? JSON.parse(signature).text
+                        : signature
+                    ),
                 wordBreak: "break-word",
                 lineHeight: "1.2",
               }}
@@ -727,56 +717,8 @@ const DocumentSigning: React.FC = () => {
     );
   };
 
-  const testPlaceholders: PlaceholderData[] = [
-    {
-      placeholderNumber: 1,
-      position: {
-        x: "48.67%",
-        y: "36.12%",
-      },
-      type: "text",
-      size: {
-        width: "15.00%",
-        height: "6.25%",
-      },
-      assignedTo: "You",
-      email: "your-email@example.com",
-      pageNumber: 1,
-    },
-    {
-      placeholderNumber: 2,
-      position: {
-        x: "69.41%",
-        y: "28.32%",
-      },
-      type: "signature",
-      size: {
-        width: "15.00%",
-        height: "6.25%",
-      },
-      assignedTo: "You",
-      email: "your-email@example.com",
-      pageNumber: 1,
-    },
-    {
-      placeholderNumber: 3,
-      position: {
-        x: "77.26%",
-        y: "48.27%",
-      },
-      type: "date",
-      size: {
-        width: "15.00%",
-        height: "6.25%",
-      },
-      assignedTo: "You",
-      email: "your-email@example.com",
-      pageNumber: 1,
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <div className="min-h-screen bg-black text-white">
       {/* Add Header */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-sm">
         <div className="py-5">
@@ -802,7 +744,7 @@ const DocumentSigning: React.FC = () => {
             </Link>
             <div className="flex items-center gap-4">
               <button className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition-colors">
-                Complete
+                Completed
               </button>
               <div className="relative">
                 <button
@@ -814,8 +756,8 @@ const DocumentSigning: React.FC = () => {
                   className="flex items-center gap-2 p-1 rounded-lg hover:bg-black/40"
                 >
                   <img
-                    src={userData?.user.avatar || "/avatars/default.png"}
-                    alt={userData?.user.userName || "Profile"}
+                    src={userData?.user.avatar}
+                    alt={userData?.user.userName}
                     className="w-9 h-9 rounded-full object-cover"
                     onError={(e) => {
                       const img = e.target as HTMLImageElement;
@@ -877,22 +819,25 @@ const DocumentSigning: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="max-w-5xl mx-auto">
-          {documentUrls.map((pageUrl, pageIndex) => (
-            <div
-              key={pageIndex}
-              className="relative mb-8 bg-white rounded-lg shadow-lg"
-            >
-              <img
-                src={pageUrl}
-                alt={`Document page ${pageIndex + 1}`}
-                className="w-full h-auto"
-              />
-              {testPlaceholders
-                .filter((p) => p.pageNumber === pageIndex + 1)
-                .map((placeholder) => renderInputField(placeholder))}
-            </div>
-          ))}
+    </div>
+    <div className="pt-[85px] ">
+          <div className="max-w-5xl mx-auto px-8">
+            {documentUrls.map((pageUrl, pageIndex) => (
+              <div
+                key={pageIndex}
+                className="relative mb-8 bg-white rounded-lg shadow-lg"
+              >
+                <img
+                  src={pageUrl}
+                  alt={`Document page ${pageIndex + 1}`}
+                  className="w-full h-auto"
+                />
+                {agreement?.placeholders
+                  .filter((p) => p.pageNumber === pageIndex + 1)
+                  .map((placeholder) => renderInputField(placeholder))}
+              </div>
+            ))}
+          </div>
         </div>
 
         <SignaturePopup
@@ -910,7 +855,6 @@ const DocumentSigning: React.FC = () => {
           type={selectedPlaceholder?.type || "signature"}
         />
       </div>
-    </div>
   );
 };
 

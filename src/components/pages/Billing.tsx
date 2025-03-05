@@ -3,6 +3,19 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import lightningIcon from '../../assets/images/credits-icon.png';
 import infinity from '../../assets/images/infinite.png';
 
+interface CreditHistory {
+  thingUsed: string;
+  creditsUsed: number;
+  timestamp: string;
+  _id: string;
+}
+
+interface Subscription {
+  type: string;
+  endDate: string | null;
+  timeStamp: string;
+}
+
 const Billing = () => {
   usePageTitle('Billing');
   const [currentPage, setCurrentPage] = useState(1);
@@ -15,6 +28,14 @@ const Billing = () => {
     type?: string;
     credits?: number;
   }>({ isActive: false });
+  const [creditsHistory, setCreditsHistory] = useState([]);
+const [isLoading, setIsLoading] = useState(true);
+const [totalCredits, setTotalCredits] = useState(0);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+
+  const navigateToPricing = () => {
+    window.location.href = '/pricing';
+  };
 
   useEffect(() => {
     // Fetch user's subscription status
@@ -22,6 +43,34 @@ const Billing = () => {
     if (subscriptionStatus) {
       setActiveSubscription(JSON.parse(subscriptionStatus));
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchCreditsHistory = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('https://server.signbuddy.in/api/v1/getcredits', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch credits history');
+        
+        const data = await response.json();
+        setTotalCredits(data.credits);
+        setCreditsHistory(data.creditsHistory || []);
+        setSubscription(data.subsription);
+      } catch (error) {
+        console.error('Error fetching credits history:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCreditsHistory();
   }, []);
 
   const handlePageChange = (direction: 'prev' | 'next') => {
@@ -49,18 +98,32 @@ const Billing = () => {
               <div className="inline-block px-2 py-0.5 bg-amber-400 text-black rounded-full text-sm font-medium mb-2">
                 Current plan
               </div>
-              <h2 className="text-lg font-semibold mb-1">For Organizations/Teams</h2>
-              <p className="text-gray-400 text-sm mb-2">
-                For teams who needs multiple documents and will have multiple users to manage legalities
-              </p>
-              <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-xl">₹</span>
-                <span className="text-3xl font-bold">699</span>
-                <span className="text-gray-400 ml-1 text-sm">Per month</span>
-              </div>
-              <div className="bg-gray-800/50 rounded-lg p-2 text-center text-sm">
-                Expires on Mar 24, 2025
-              </div>
+              {subscription?.type === 'free' ? (
+                <>
+                  <h2 className="text-lg font-semibold mb-1">Free Plan</h2>
+                  <p className="text-gray-400 text-sm mb-4">
+                    Limited features with basic functionality
+                  </p>
+                  <button
+                    onClick={navigateToPricing}
+                    className="w-full py-2 px-4 bg-white hover:white text-black rounded-lg transition-colors"
+                  >
+                    Upgrade Plan
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-semibold mb-1">
+                    {subscription?.type === 'monthly' ? 'monthly' : 'annually'} Plan
+                  </h2>
+                  <p className="text-gray-400 text-sm mb-2">
+                    For teams who needs multiple documents and will have multiple users to manage legalities
+                  </p>
+                  <div className="bg-gray-800/50 rounded-lg p-2 text-center text-sm">
+                    Expires on {subscription?.endDate ? new Date(subscription.endDate).toLocaleDateString() : 'N/A'}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Billing History */}
@@ -126,7 +189,7 @@ const Billing = () => {
           </div>
 
           {/* Right Column - Usage Stats */}
-          <div className="bg-black/40 rounded-xl border border-white/30 p-3 flex flex-col h-auto lg:h-[653px]">
+          <div className="bg-black/40 rounded-xl border border-white/30 p-3 flex flex-col h-auto lg:h-[600px]">
             <div className="flex-shrink-0">
               <div className="flex items-center justify-center p-4 bg-[#1C1C1E] rounded-lg mb-3">
                 <div className="text-center">
@@ -144,30 +207,37 @@ const Billing = () => {
             </div>
 
             <div className="space-y-2 overflow-y-auto h-[300px] lg:h-auto lg:flex-1 pr-2">
-              {[
-                { title: 'AI Assistance', count: 11, date: 'Feb 20, 2025', desc: 'Used AI chat to prepare a document', type: 'deduct' },
-                { title: 'Credits Added', count: 50, date: 'Feb 20, 2025', desc: 'Monthly credit refresh', type: 'add' },
-                { title: 'Mailed a Document', count: 10, date: 'Feb 20, 2025', desc: 'A document has been mailed to 3 people', type: 'deduct' },
-                { title: 'Credits Added', count: 25, date: 'Feb 20, 2025', desc: 'Bonus credits', type: 'add' },
-                { title: 'AI Assistance', count: 10, date: 'Feb 20, 2025', desc: 'Used AI chat to prepare a document', type: 'deduct' },
-                { title: 'AI Assistance', count: 10, date: 'Feb 20, 2025', desc: 'Used AI chat to prepare a document', type: 'deduct' },
-                { title: 'AI Assistance', count: 10, date: 'Feb 20, 2025', desc: 'Used AI chat to prepare a document', type: 'deduct' }
-              ].map((item, index) => (
-                <div key={index} className="flex items-center justify-between group">
-                  <div>
-                    <h3 className="text-lg font-medium">{item.title}</h3>
-                    <p className="text-gray-500">{item.desc}</p>
-                    <p className="text-gray-600 text-sm">{item.date}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${item.type === 'add' ? 'bg-[#122C12] text-[#47FF47]' : 'bg-[#2C1212] text-[#FF4747]'
+              {isLoading ? (
+                <div className="text-center py-4">Loading...</div>
+              ) : (
+                creditsHistory.map((item, index) => (
+                  <div key={item._id} className="flex items-center justify-between group">
+                    <div>
+                      <h3 className="text-lg font-medium">
+                        {item.thingUsed === 'documentSent' ? 'Document Sent' :
+                         item.thingUsed === 'monthly refilled' ? 'Monthly Refresh' :
+                         item.thingUsed === 'purchased' ? 'Credits Purchased' : item.thingUsed}
+                      </h3>
+                      <p className="text-gray-500">
+                        {item.thingUsed === 'documentSent' ? 'Document has been sent' :
+                         item.thingUsed === 'monthly refilled' ? 'Monthly credit refresh' :
+                         item.thingUsed === 'purchased' ? 'Purchased credits' : ''}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        {new Date(item.timestamp).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${
+                        item.thingUsed === 'documentSent' ? 'bg-[#2C1212] text-[#FF4747]' : 'bg-[#122C12] text-[#47FF47]'
                       }`}>
-                      <img src={lightningIcon} alt="Credits" className="w-4 h-4" />
-                      {item.count}
+                        <img src={lightningIcon} alt="Credits" className="w-4 h-4" />
+                        {item.creditsUsed}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

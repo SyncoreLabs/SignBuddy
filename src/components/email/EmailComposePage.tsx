@@ -123,9 +123,12 @@ Please click anywhere below to complete the document.`,
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to send agreement");
       }
-  
-      // Show success toast and navigate to dashboard
-      navigate("/dashboard");
+
+      navigate("/email-success", {
+        state: {
+          documentTitle: emailTemplate.documentName
+        }
+      });
     } catch (error) {
       console.error("Error sending agreement:", error);
       // Add error handling here (e.g., show error toast)
