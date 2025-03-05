@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import plusIcon from "../../assets/images/Vector.png";
 import pendingIcon from "../../assets/images/pending.png";
 import completedIcon from "../../assets/images/security-icon.png";
@@ -126,23 +126,35 @@ const Dashboard: React.FC = () => {
     return documents.slice(indexOfFirstDoc, indexOfLastDoc);
   };
 
-  const filteredDocuments = recentDocuments.filter((doc) => {
-    const matchesStatus =
-      statusFilter.length === 0
-        ? true
-        : statusFilter.includes(doc.status.toLowerCase() as DocumentStatus);
-    const matchesSearch =
-      searchQuery === "" ||
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const filteredDocuments = useMemo(() => {
+    return recentDocuments
+      .filter((doc) => {
+        const matchesSearch = doc.title
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+        const matchesStatus =
+          statusFilter.length === 0 || statusFilter.includes(doc.status.toLowerCase() as DocumentStatus);
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        // Fix the typo in receivedAt property name
+        const dateA = new Date(a.receivedAt || 0).getTime();
+        const dateB = new Date(b.receivedAt || 0).getTime();
+        return dateB - dateA; // Sort in descending order (newest first)
+      });
+  }, [recentDocuments, searchQuery, statusFilter]);
 
-  const filteredReceivedDocuments = receivedDocuments.filter((doc) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredReceivedDocuments = useMemo(() => {
+    return receivedDocuments
+      .filter((doc) =>
+        doc.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        const dateA = new Date(a.receivedAt || 0).getTime();
+        const dateB = new Date(b.receivedAt || 0).getTime();
+        return dateB - dateA; // Sort in descending order (newest first)
+      });
+  }, [receivedDocuments, searchQuery]);
 
   const paginatedDocuments = getPaginatedDocuments(
     activeTab === "your" ? filteredDocuments : filteredReceivedDocuments
@@ -231,29 +243,28 @@ const Dashboard: React.FC = () => {
 
         // Update recent documents
         if (data.recentDocuments) {
-          setRecentDocuments(data.recentDocuments);
+          setRecentDocuments([...data.recentDocuments].reverse());
         }
 
         // Update received documents (incoming agreements)
         if (data.incomingAgreements) {
-          // Transform incoming agreements to match the RecentDocument structure
-          const transformedAgreements = data.incomingAgreements.map(
-            (agreement: IncomingAgreement) => ({
-              documentKey: agreement.agreementKey,
-              title: agreement.title,
-              documentUrl: agreement.imageUrls,
-              status: agreement.status,
-              recipients: [
-                { email: agreement.senderEmail, name: agreement.senderEmail },
-              ],
-              signedDocument: null,
-              placeholders: agreement.placeholders,
-              drafts: [],
-              receivedAt: agreement.receivedAt,
-            })
-          );
-          setReceivedDocuments(transformedAgreements);
-        }
+      const transformedAgreements = data.incomingAgreements.map(
+        (agreement: IncomingAgreement) => ({
+          documentKey: agreement.agreementKey,
+          title: agreement.title,
+          documentUrl: agreement.imageUrls,
+          status: agreement.status,
+          recipients: [
+            { email: agreement.senderEmail, name: agreement.senderEmail },
+          ],
+          signedDocument: null,
+          placeholders: agreement.placeholders,
+          drafts: [],
+          receivedAt: agreement.receivedAt,
+        })
+      );
+      setReceivedDocuments([...transformedAgreements].reverse());
+    }
       } catch (error) {
         console.error("Error fetching documents:", error);
       } finally {
@@ -1391,7 +1402,6 @@ const Dashboard: React.FC = () => {
                             (doc) => doc.documentKey !== documentKeyToDelete
                           )
                         );
-                        alert("Document deleted successfully");
                       } else {
                         throw new Error("Failed to delete document");
                       }

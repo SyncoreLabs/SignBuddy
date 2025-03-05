@@ -430,31 +430,31 @@ const Pricing: React.FC = () => {
                       <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Unlimited document creations</span>
+                      <span>Unlimited credits</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Unlimited document creations</span>
+                      <span>Send Unlimited documents</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>AI-powered features</span>
+                      <span>Unlimited reminders</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Unlimited emails and reminders</span>
+                      <span>Fixed monthly costs</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Access to all document templates</span>
+                      <span>Priority Support</span>
                     </div>
                   </div>
 

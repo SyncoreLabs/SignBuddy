@@ -98,142 +98,11 @@ const DocumentRecipients: React.FC = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const state = location.state as LocationState;
   const [documentPages, setDocumentPages] = useState<string[]>([]);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [navigateTo, setNavigateTo] = useState<string | null>(null);
   const [emailSubject, setEmailSubject] = useState("");
 const [emailMessage, setEmailMessage] = useState("");
 const [ccEmails, setCcEmails] = useState<string[]>([]);
 const [bccEmails, setBccEmails] = useState<string[]>([]);
 const [fileKey, setfileKey] = useState<string>("");
-
-  const users = ["User1", "User2", "User3"]; //
-  const toggleFab = () => {
-    setIsFabOpen(!isFabOpen);
-  };
-
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
-    };
-  
-    const handlePopState = () => {
-      // Don't prevent default here as it's not supported for popstate
-      if (window.location.pathname !== '/email-compose') {
-        setNavigateTo(window.location.pathname);
-        setShowExitConfirm(true);
-        // Prevent immediate navigation
-        window.history.pushState(null, '', window.location.href);
-      }
-    };
-  
-    // Add pushState to the current URL when component mounts
-    window.history.pushState(null, '', window.location.href);
-  
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('popstate', handlePopState);
-  
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
-  const handleSaveDraft = async () => {
-    try {
-      setIsSaving(true);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setToastMessage('Please login to continue');
-        setShowToast(true);
-        return;
-      }
-  
-      const fileKey = location.state?.fileKey;
-      if (!fileKey) {
-        setToastMessage('Document key not found');
-        setShowToast(true);
-        return;
-      }
-  
-      // Format data for saving
-      const draftData = {
-        fileKey: fileKey,
-        updatedDraft: {
-          fileKey: fileKey,
-          documentTitle: documentName || location.state?.documentTitle,
-          documentUrls: documentPages,
-          fileUrl: documentPages[0], // Add fileUrl field (using first page URL)
-          recipients: recipients.filter(r => r.name || r.email).map(r => ({
-            email: r.email || '',
-            name: r.name || '',
-            status: 'pending'
-          })),
-          placeholders: placeholders.map((p, index) => ({
-            placeholderNumber: index + 1,
-            position: { 
-              x: p.xPercent.toString(), 
-              y: p.yPercent.toString() 
-            },
-            type: p.fieldType || 'text',
-            size: { 
-              width: p.widthPercent.toString(), 
-              height: p.heightPercent.toString() 
-            },
-            assignedTo: p.signer || '',
-            email: p.signer === 'You' ? userData?.user.email : 
-              recipients.find(r => r.name === p.signer)?.email || '',
-            pageNumber: p.pageIndex + 1
-          })),
-          emailData: {
-            subject: emailSubject,
-            message: emailMessage,
-            ccEmails,
-            bccEmails
-          }
-        }
-      };
-  
-      const response = await fetch('https://server.signbuddy.in/api/v1/drafts/update', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(draftData)
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save draft');
-      }
-  
-      setToastMessage('Draft saved successfully');
-      setShowToast(true);
-      
-      if (navigateTo) {
-        navigate(navigateTo);
-      }
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      setToastMessage(error instanceof Error ? error.message : 'Failed to save draft');
-      setShowToast(true);
-    } finally {
-      setIsSaving(false);
-      setShowExitConfirm(false);
-    }
-  };
-
-  const handleNavigation = (to: string, skipConfirm: boolean = false) => {
-    if (skipConfirm) {
-      navigate(to);
-      return;
-    }
-    setNavigateTo(to);
-    setShowExitConfirm(true);
-  };
 
   const getAvailableSigners = () => {
     const validRecipients = recipients.filter(
@@ -343,16 +212,6 @@ const [fileKey, setfileKey] = useState<string>("");
   
     fetchUserData();
   }, []);
-
-  const CustomLink = ({ to, children }: { to: string; children: React.ReactNode }) => {
-    const handleClick = (e: React.MouseEvent) => {
-      e.preventDefault();
-      setNavigateTo(to);
-      setShowExitConfirm(true);
-    };
-
-    return <Link to={to} onClick={handleClick}>{children}</Link>;
-  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -742,28 +601,6 @@ const [fileKey, setfileKey] = useState<string>("");
     }
   };
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
-    };
-  
-    const handlePopState = (e: PopStateEvent) => {
-      e.preventDefault();
-      setNavigateTo(window.location.pathname);
-      setShowExitConfirm(true);
-    };
-  
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('popstate', handlePopState);
-  
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
   return (
     <>
       <div className="min-h-screen bg-black text-white">
@@ -775,11 +612,6 @@ const [fileKey, setfileKey] = useState<string>("");
                 <Link
                   to="/dashboard"
                   className="inline-flex items-center gap-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg px-3 py-1.5 md:px-4 md:py-2 hover:border-white transition-colors text-sm md:text-base"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setNavigateTo("/dashboard");
-                    setShowExitConfirm(true);
-                  }}
                 >
                   <svg
                     className="w-4 h-4 md:w-5 md:h-5"
@@ -848,30 +680,18 @@ const [fileKey, setfileKey] = useState<string>("");
                       </div>
                       <Link
                         to="/account-settings"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleNavigation('/account-settings');
-                        }}
                         className="block px-4 py-2 text-sm font-semibold text-gray-400 hover:text-white hover:bg-black/60"
                       >
                         Account Settings
                       </Link>
                       <Link
                         to="/billing"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleNavigation('/billing');
-                        }}
                         className="block px-4 py-2 text-sm font-semibold text-gray-400 hover:text-white hover:bg-black/60"
                       >
                         Billing
                       </Link>
                       <Link
                         to="/logout"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleNavigation('/logout');
-                        }}
                         className="block px-4 py-2 text-sm font-semibold text-red-500 hover:bg-black/60"
                       >
                         Log out
@@ -1439,34 +1259,6 @@ const [fileKey, setfileKey] = useState<string>("");
           onClose={() => setShowToast(false)}
           duration={toastDuration}
         />
-      )}
-      {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-[#111111] rounded-xl border border-white/30 p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4">Save Changes?</h3>
-            <p className="text-gray-400 mb-6">
-              Would you like to save your changes before leaving? You can continue editing this document later.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowExitConfirm(false);
-                  if (navigateTo) navigate(navigateTo);
-                }}
-                className="flex-1 px-4 py-2 border border-white/30 rounded-lg hover:bg-white/10"
-              >
-                Don't Save
-              </button>
-              <button
-                onClick={handleSaveDraft}
-                disabled={isSaving}
-                className="flex-1 px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-200 disabled:opacity-50"
-              >
-                {isSaving ? 'Saving...' : 'Save & Exit'}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </>
   );
