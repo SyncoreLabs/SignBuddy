@@ -260,7 +260,7 @@ Please click anywhere below to complete the document.`,
                     {userDetails.name} via SignBuddy
                   </div>
                   <div className="text-sm text-gray-400">
-                    Official@signbuddy.in
+                  {userDetails.email}
                   </div>
                 </div>
               </div>

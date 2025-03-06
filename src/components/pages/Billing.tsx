@@ -189,7 +189,7 @@ const [totalCredits, setTotalCredits] = useState(0);
           </div>
 
           {/* Right Column - Usage Stats */}
-          <div className="bg-black/40 rounded-xl border border-white/30 p-3 flex flex-col h-auto lg:h-[600px]">
+          <div className="bg-black/40 rounded-xl border border-white/30 p-3 flex flex-col h-auto lg:h-[608px]">
             <div className="flex-shrink-0">
               <div className="flex items-center justify-center p-4 bg-[#1C1C1E] rounded-lg mb-3">
                 <div className="text-center">
@@ -210,7 +210,7 @@ const [totalCredits, setTotalCredits] = useState(0);
               {isLoading ? (
                 <div className="text-center py-4">Loading...</div>
               ) : (
-                creditsHistory.map((item, index) => (
+                [...creditsHistory].reverse().map((item, index) => (
                   <div key={item._id} className="flex items-center justify-between group">
                     <div>
                       <h3 className="text-lg font-medium">

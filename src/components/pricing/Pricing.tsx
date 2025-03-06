@@ -1,6 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import lightningIcon from '../../assets/images/credits-icon.png';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
+interface PaymentPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  planType: 'credits' | 'subscription';
+  selectedPrice: string;
+  selectedCredits?: number;
+  isYearly?: boolean;
+}
 
 const Pricing: React.FC = () => {
   const [isCreditsTab, setIsCreditsTab] = useState(true);
@@ -12,14 +27,287 @@ const Pricing: React.FC = () => {
     isActive: boolean;
     expiryDate?: string;
   }>({ isActive: false });
+  const navigate = useNavigate();
+  const [isPaymentPopupOpen, setIsPaymentPopupOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{
+    type: 'credits' | 'subscription';
+    price: string;
+    credits?: number;
+  } | null>(null);
 
-  useEffect(() => {
-    // Check localStorage or make an API call to get subscription status
-    const subscriptionStatus = localStorage.getItem('subscriptionStatus');
-    if (subscriptionStatus) {
-      setActiveSubscription(JSON.parse(subscriptionStatus));
-    }
-  }, []);
+  const PaymentPopup: React.FC<PaymentPopupProps> = ({ isOpen, onClose, planType, selectedPrice, selectedCredits, isYearly }) => {
+    const [userDetails, setUserDetails] = useState({
+      name: '',
+      email: '',
+      contact: ''
+    });
+
+    useEffect(() => {
+      const fetchSubscriptionStatus = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch('https://server.signbuddy.in/api/v1/getcredits', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+  
+          if (!response.ok) throw new Error('Failed to fetch subscription status');
+          
+          const data = await response.json();
+          if (data.subscription) {
+            setActiveSubscription({
+              isActive: true,
+              expiryDate: data.subscription.endDate
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching subscription status:', error);
+        }
+      };
+  
+      fetchSubscriptionStatus();
+    }, []);
+
+    useEffect(() => {
+      const fetchUserDetails = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
+
+          const response = await fetch('https://server.signbuddy.in/api/v1/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setUserDetails(prev => ({
+              ...prev,
+              name: data.user.userName || '',
+              email: data.user.email || ''
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching user details:', error);
+        }
+      };
+
+      fetchUserDetails();
+    }, []);
+
+    if (!isOpen) return null;
+  
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+    
+      if (!userDetails.name || !userDetails.email || !userDetails.contact) {
+        alert('Please fill in all fields');
+        return;
+      }
+    
+      // Add check for Razorpay script
+      if (typeof window.Razorpay === 'undefined') {
+        // Try to load the script dynamically if not present
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => {
+          // Retry the payment process after script loads
+          handlePayment();
+        };
+        document.head.appendChild(script);
+        return;
+      }
+    
+      // Move payment logic to separate function
+      handlePayment();
+    };
+    
+    const handlePayment = async () => {
+      try {
+        const data = planType === 'credits' 
+          ? {
+              planType: "credits",
+              creditPackage: selectedCredits?.toString()
+            }
+          : {
+              planType: "subscription",
+              subscriptionPlan: isYearly ? 'yearly' : 'monthly'
+            };
+    
+        console.log('Sending order request:', data);
+        const orderResponse = await fetch(
+          "https://server.signbuddy.in/api/v1/payments/place-order",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify(data),
+          }
+        );
+
+        const orderData = await orderResponse.json();
+        console.log('Server response:', orderData); // Add this line to debug
+        
+        if (!orderData.order) {
+          throw new Error(orderData.message || 'Failed to create order');
+        }
+
+        console.log('Order created:', orderData);
+  
+        if (!orderData.order || !orderData.order.id) {
+          throw new Error('Invalid order data received');
+        }
+
+        const options = {
+          key: "rzp_test_7Y68xAGGwsGCBF",
+          amount: orderData.order.amount,
+          currency: orderData.order.currency || 'INR',
+          name: "SignBuddy",
+          description: `Purchase ${planType === 'credits' ? `${selectedCredits} credits` : `${isYearly ? 'yearly' : 'monthly'} subscription`}`,
+          order_id: orderData.order.id,
+          handler: async function (response: any) {
+            console.log('Payment successful:', response);
+            try {
+              // Updated verification endpoint and request structure
+              const verifyResponse = await fetch(
+                "https://server.signbuddy.in/api/v1/payments/verify-payment",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  },
+                  body: JSON.stringify({
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_signature: response.razorpay_signature,
+                    planType: planType,
+                    subscriptionPlan: isYearly ? 'yearly' : 'monthly'
+                  }),
+                }
+              );
+              
+              const verifyData = await verifyResponse.json();
+              if (!verifyResponse.ok || !verifyData.success) {
+                throw new Error(verifyData.message || 'Payment verification failed');
+              }
+              
+              alert('Payment successful!');
+              onClose();
+            } catch (error) {
+              console.error('Payment verification error:', error);
+              alert('Payment verification failed. Please contact support.');
+            }
+          },
+          prefill: {
+            name: userDetails.name,
+            email: userDetails.email,
+            contact: userDetails.contact
+          },
+          theme: {
+            color: "#09090b",
+          },
+          modal: {
+            ondismiss: function() {
+              console.log('Payment window closed');
+            }
+          }
+        };
+  
+        console.log('Initializing Razorpay with options:', options);
+        // Check if Razorpay is loaded
+        if (typeof window.Razorpay === 'undefined') {
+          throw new Error('Razorpay SDK not loaded! Please check your internet connection.');
+        }
+        
+        // Initialize Razorpay
+        try {
+          const razorpay = new window.Razorpay(options);
+          razorpay.open();
+        } catch (error) {
+          console.error('Razorpay initialization error:', error);
+          alert('Failed to initialize payment. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error in payment process:', error);
+        alert(error instanceof Error ? error.message : 'Failed to initialize payment. Please try again.');
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-black rounded-lg p-8 max-w-md w-full border border-white/30">
+          <h2 className="text-2xl font-bold text-white mb-4">Confirm Purchase</h2>
+          <div className="mb-6">
+            <p className="text-gray-400 mb-4">
+              {planType === 'credits' 
+                ? `Purchase ${selectedCredits} credits for ${selectedPrice}`
+                : `Subscribe to ${isYearly ? 'yearly' : 'monthly'} plan for ${selectedPrice}`
+              }
+            </p>
+            
+            <form className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  value={userDetails.name}
+                  onChange={(e) => setUserDetails(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  value={userDetails.email}
+                  onChange={(e) => setUserDetails(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  required
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  value={userDetails.contact}
+                  onChange={(e) => setUserDetails(prev => ({ ...prev, contact: e.target.value }))}
+                />
+              </div>
+            </form>
+          </div>
+          <div className="flex justify-end gap-4">
+            <button
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors"
+              onClick={handleSubmit}
+            >
+              Proceed to Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const [plans, setPlans] = useState<{
     creditPackages: Array<{ credits: number; price: number }>;
@@ -48,10 +336,11 @@ const Pricing: React.FC = () => {
     fetchPlans();
   }, []);
 
-  const renderActionButton = (price: string) => {
+  const renderActionButton = (price: string, credits?: number) => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
 
-    if (isAuthenticated && activeSubscription.isActive && activeSubscription.expiryDate) {
+    // For subscription plans, show expiry if active
+    if (!isCreditsTab && isAuthenticated && activeSubscription.isActive && activeSubscription.expiryDate) {
       return (
         <div className="text-center px-4 py-2 bg-gray-800 rounded-lg text-gray-400">
           Expires on {new Date(activeSubscription.expiryDate).toLocaleDateString()}
@@ -59,14 +348,37 @@ const Pricing: React.FC = () => {
       );
     }
 
-
+    // For credits, allow purchase even with active subscription
     return (
-      <Link
-        to={isAuthenticated ? "/dashboard" : "/signup"}
-        className="block text-center bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+      <button
+        onClick={() => {
+          if (!isAuthenticated) {
+            navigate('/signup');
+            return;
+          }
+          if (!isCreditsTab && activeSubscription.isActive) {
+            alert('You already have an active subscription');
+            return;
+          }
+          setSelectedPlan({
+            type: isCreditsTab ? 'credits' : 'subscription',
+            price: price.replace('₹', ''),
+            credits: credits || 0
+          });
+          setIsPaymentPopupOpen(true);
+        }}
+        className={`w-full text-center px-4 py-2 rounded-lg transition-colors font-medium
+          ${(!isCreditsTab && activeSubscription.isActive) 
+            ? 'bg-gray-300 text-gray-700 cursor-not-allowed' 
+            : 'bg-white text-black hover:bg-gray-100'}`}
+        disabled={!isCreditsTab && activeSubscription.isActive}
       >
-        {isAuthenticated ? `Get started with ${price}` : "Get started"}
-      </Link>
+        {isAuthenticated 
+          ? (!isCreditsTab && activeSubscription.isActive)
+            ? 'Already subscribed'
+            : `Get started with ${price}`
+          : "Get started"}
+      </button>
     );
   };
 
@@ -159,6 +471,16 @@ const Pricing: React.FC = () => {
 
   return (
     <div className="bg-black min-h-screen">
+      {isPaymentPopupOpen && selectedPlan && (
+        <PaymentPopup
+          isOpen={isPaymentPopupOpen}
+          onClose={() => setIsPaymentPopupOpen(false)}
+          planType={selectedPlan.type}
+          selectedPrice={selectedPlan.price}
+          selectedCredits={selectedPlan.credits}
+          isYearly={isYearly}
+        />
+      )}
       <div className="max-w-7xl mx-auto px-4 py-5">
         <div className="mb-6">
           <h1 className="text-3xl md:text-5xl font-bold mb-4">Our Pricing Plans</h1>
@@ -274,7 +596,7 @@ const Pricing: React.FC = () => {
               </div>
 
               <div className="w-full md:max-w-xl space-y-4">
-                {!isLoading && plans?.creditPackages.map((plan, index) => {
+              {!isLoading && plans?.creditPackages.map((plan, index) => {
                   const planNames = ['Basic', 'Standard', 'Premium'];
                   const discounts = [null, '12% off', '16% off'];
                   const discountColors = [null, 'bg-yellow-400', 'bg-emerald-400'];
@@ -299,7 +621,7 @@ const Pricing: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      {renderActionButton(`₹${plan.price}`)}
+                      {renderActionButton(`₹${plan.price}`, plan.credits)}
                     </div>
                   );
                 })}

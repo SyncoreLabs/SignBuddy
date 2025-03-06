@@ -108,7 +108,7 @@ const EmailSuccessPage: React.FC = () => {
                         {/* Document Download Section */}
                         <div className="flex flex-col p-3 bg-[#111] rounded-lg">
                             <div className="flex items-center justify-between">
-                                <div className="flex flex-col">
+                                <div className="flex flex-col align-center">
                                     <span className="text-sm text-white">{documentTitle}</span>
                                 </div>
                             </div>
