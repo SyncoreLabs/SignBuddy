@@ -545,41 +545,93 @@ const DocumentSigning: React.FC = () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
-
+  
       const formData = new FormData();
       formData.append('documentKey', agreement.documentKey);
       formData.append('senderEmail', userData?.user.email || '');
-
+  
       // Process placeholders
       const processedPlaceholders = [];
-
+  
       for (const placeholder of agreement.placeholders) {
         const signatureValue = signatureData[placeholder.placeholderNumber];
         if (!signatureValue) continue;
-
+  
         if (placeholder.type === 'signature') {
           let imageData = signatureValue;
           
           try {
             const parsedData = JSON.parse(signatureValue);
             if (parsedData.text) {
+              // Create canvas for text-based signature
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
               canvas.width = 600;
               canvas.height = 200;
               if (ctx) {
+                // Make background transparent
+                ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
                 ctx.font = `48px ${parsedData.font}`;
                 ctx.fillStyle = 'black';
                 ctx.fillText(parsedData.text, 50, 100);
                 imageData = canvas.toDataURL('image/png');
               }
             } else if (parsedData.imageData) {
-              imageData = parsedData.imageData;
+              // Convert uploaded image to PNG with transparent background
+              const img = new Image();
+              await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = parsedData.imageData;
+              });
+  
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              canvas.width = img.width;
+              canvas.height = img.height;
+  
+              if (ctx) {
+                // Make background transparent
+                ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Apply rotation and zoom
+                ctx.translate(canvas.width/2, canvas.height/2);
+                ctx.rotate(parsedData.rotation * Math.PI / 180);
+                ctx.scale(parsedData.zoom, parsedData.zoom);
+                ctx.translate(-canvas.width/2, -canvas.height/2);
+                
+                ctx.drawImage(img, 0, 0);
+                imageData = canvas.toDataURL('image/png');
+              }
             }
           } catch (e) {
-            // If JSON.parse fails, use the original value
+            // If JSON.parse fails, convert the original signature to PNG
+            if (signatureValue.startsWith('data:image')) {
+              const img = new Image();
+              await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = signatureValue;
+              });
+  
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              canvas.width = img.width;
+              canvas.height = img.height;
+  
+              if (ctx) {
+                // Make background transparent
+                ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                imageData = canvas.toDataURL('image/png');
+              }
+            }
           }
-
+  
           // Convert base64 to blob
           const base64Response = await fetch(imageData);
           const blob = await base64Response.blob();
@@ -587,7 +639,7 @@ const DocumentSigning: React.FC = () => {
           
           // Append file separately
           formData.append('file', blob, fileName);
-
+  
           processedPlaceholders.push({
             type: 'signature',
             email: placeholder.email,

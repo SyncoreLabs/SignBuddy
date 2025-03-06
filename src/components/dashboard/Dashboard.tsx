@@ -28,6 +28,7 @@ interface RecentDocument {
     assignedTo: string;
     email: string;
     pageNumber: number;
+    value?: string;
   }[];
   drafts: any[];
   type?: 'agreement' | 'draft';
@@ -45,9 +46,15 @@ interface PreviewDocument {
     position: { x: string; y: string };
     size: { width: string; height: string };
     type: string;
-    value?: string;
     assignedTo: string;
+    email: string;
     pageNumber: number;
+    placeholderNumber: number;
+    value?: string;
+    displayValue?: {
+      type: 'text' | 'image';
+      data: string;
+    };
   }[];
 }
 
@@ -392,23 +399,34 @@ const Dashboard: React.FC = () => {
       console.log("No preview available for this document");
       return;
     }
-
-    // Transform the placeholders from RecentDocument format to PreviewDocument format
-    const formattedPlaceholders = doc.placeholders.map(p => ({
-      position: {
-        x: p.position.x,
-        y: p.position.y
-      },
-      size: {
-        width: p.size.width,
-        height: p.size.height
-      },
-      type: p.type,
-      assignedTo: p.assignedTo,
-      pageNumber: p.pageNumber,
-      value: ''
-    }));
-
+  
+    // Only include placeholders that have values
+    const formattedPlaceholders = doc.placeholders
+      .filter(p => p.value) // Only keep placeholders that have values
+      .map(p => ({
+        position: {
+          x: p.position.x,
+          y: p.position.y
+        },
+        size: {
+          width: p.size.width,
+          height: p.size.height
+        },
+        type: p.type,
+        assignedTo: p.assignedTo,
+        email: p.email,
+        pageNumber: p.pageNumber,
+        placeholderNumber: p.placeholderNumber,
+        value: p.value,
+        displayValue: p.type === 'signature' ? {
+          type: 'image',
+          data: p.value // Direct S3 URL for signatures
+        } : {
+          type: 'text',
+          data: p.value
+        }
+      }));
+  
     setSelectedDocument({
       title: doc.title,
       pages: doc.documentUrl,

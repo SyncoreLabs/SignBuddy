@@ -26,6 +26,7 @@ const Pricing: React.FC = () => {
   const [activeSubscription, setActiveSubscription] = useState<{
     isActive: boolean;
     expiryDate?: string;
+    type?: string;
   }>({ isActive: false });
   const navigate = useNavigate();
   const [isPaymentPopupOpen, setIsPaymentPopupOpen] = useState(false);
@@ -35,40 +36,44 @@ const Pricing: React.FC = () => {
     credits?: number;
   } | null>(null);
 
+  useEffect(() => {
+    const fetchSubscriptionStatus = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('https://server.signbuddy.in/api/v1/getcredits', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch subscription status');
+        
+        const data = await response.json();
+        if (data.subscription) {
+          setActiveSubscription({
+            isActive: ['monthly', 'annually'].includes(data.subscription.type),
+            expiryDate: data.subscription.endDate,
+            type: data.subscription.type
+          });
+        } else {
+          setActiveSubscription({ isActive: false });
+        }
+      } catch (error) {
+        console.error('Error fetching subscription status:', error);
+        setActiveSubscription({ isActive: false });
+      }
+    };
+
+    fetchSubscriptionStatus();
+  }, [isPaymentPopupOpen]);
+
   const PaymentPopup: React.FC<PaymentPopupProps> = ({ isOpen, onClose, planType, selectedPrice, selectedCredits, isYearly }) => {
     const [userDetails, setUserDetails] = useState({
       name: '',
       email: '',
       contact: ''
     });
-
-    useEffect(() => {
-      const fetchSubscriptionStatus = async () => {
-        try {
-          const token = localStorage.getItem('token');
-          const response = await fetch('https://server.signbuddy.in/api/v1/getcredits', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-  
-          if (!response.ok) throw new Error('Failed to fetch subscription status');
-          
-          const data = await response.json();
-          if (data.subscription) {
-            setActiveSubscription({
-              isActive: true,
-              expiryDate: data.subscription.endDate
-            });
-          }
-        } catch (error) {
-          console.error('Error fetching subscription status:', error);
-        }
-      };
-  
-      fetchSubscriptionStatus();
-    }, []);
 
     useEffect(() => {
       const fetchUserDetails = async () => {
@@ -336,51 +341,56 @@ const Pricing: React.FC = () => {
     fetchPlans();
   }, []);
 
-  const renderActionButton = (price: string, credits?: number) => {
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-
-    // For subscription plans, show expiry if active
-    if (!isCreditsTab && isAuthenticated && activeSubscription.isActive && activeSubscription.expiryDate) {
+    // Update the renderActionButton function
+    const renderActionButton = (price: string, credits?: number) => {
+      const token = localStorage.getItem('token');
+      const hasActiveSubscription = activeSubscription.type === 'monthly' || activeSubscription.type === 'annually';
+  
+      // For subscription plans, show expiry if active subscription
+      if (!isCreditsTab && hasActiveSubscription) {
+        return (
+          <div className="text-center px-4 py-2 bg-gray-800 rounded-lg text-gray-400">
+            {activeSubscription.type === 'monthly' ? 'Monthly' : 'Annual'} plan - Expires on {new Date(activeSubscription.expiryDate!).toLocaleDateString()}
+          </div>
+        );
+      }
+  
+      // For credits tab, show button if subscription is free or no subscription
+      // For subscription tab, show button only if no active subscription
+      const shouldShowButton = isCreditsTab || !hasActiveSubscription;
+  
       return (
-        <div className="text-center px-4 py-2 bg-gray-800 rounded-lg text-gray-400">
-          Expires on {new Date(activeSubscription.expiryDate).toLocaleDateString()}
-        </div>
+        <button
+          onClick={() => {
+            if (!token) {
+              navigate('/signup');
+              return;
+            }
+            if (!shouldShowButton) {
+              alert('You already have an active subscription');
+              return;
+            }
+            setSelectedPlan({
+              type: isCreditsTab ? 'credits' : 'subscription',
+              price: price.replace('₹', ''),
+              credits: credits || 0
+            });
+            setIsPaymentPopupOpen(true);
+          }}
+          className={`w-full text-center px-4 py-2 rounded-lg transition-colors font-medium
+            ${!shouldShowButton
+              ? 'bg-gray-300 text-gray-700 cursor-not-allowed' 
+              : 'bg-white text-black hover:bg-gray-100'}`}
+          disabled={!shouldShowButton}
+        >
+          {token 
+            ? (!isCreditsTab && hasActiveSubscription)
+              ? `Active ${activeSubscription.type} plan`
+              : `Get started with ${price}`
+            : "Sign up to continue"}
+        </button>
       );
-    }
-
-    // For credits, allow purchase even with active subscription
-    return (
-      <button
-        onClick={() => {
-          if (!isAuthenticated) {
-            navigate('/signup');
-            return;
-          }
-          if (!isCreditsTab && activeSubscription.isActive) {
-            alert('You already have an active subscription');
-            return;
-          }
-          setSelectedPlan({
-            type: isCreditsTab ? 'credits' : 'subscription',
-            price: price.replace('₹', ''),
-            credits: credits || 0
-          });
-          setIsPaymentPopupOpen(true);
-        }}
-        className={`w-full text-center px-4 py-2 rounded-lg transition-colors font-medium
-          ${(!isCreditsTab && activeSubscription.isActive) 
-            ? 'bg-gray-300 text-gray-700 cursor-not-allowed' 
-            : 'bg-white text-black hover:bg-gray-100'}`}
-        disabled={!isCreditsTab && activeSubscription.isActive}
-      >
-        {isAuthenticated 
-          ? (!isCreditsTab && activeSubscription.isActive)
-            ? 'Already subscribed'
-            : `Get started with ${price}`
-          : "Get started"}
-      </button>
-    );
-  };
+    };
 
   // Replace the existing faqs array with categorized FAQs
   const faqs = {
