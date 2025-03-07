@@ -10,6 +10,26 @@ const Login = () => {
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
 
+  const handleLoginSuccess = (token: string, navigationUrl?: string) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('isAuthenticated', 'true');
+    
+    // Check for saved document state
+    const savedDocumentState = localStorage.getItem('documentState');
+    const returnToDocument = localStorage.getItem('returnToDocument');
+    
+    if (savedDocumentState && returnToDocument) {
+      const agreement = JSON.parse(savedDocumentState);
+      navigate(returnToDocument, {
+        state: { agreement },
+        replace: true
+      });
+    } else {
+      // Navigate to the provided URL or dashboard
+      navigate(navigationUrl || '/dashboard');
+    }
+  };
+
   const handleGoogleLogin = async (response: any) => {
     try {
       const serverResponse = await fetch('https://server.signbuddy.in/api/v1/googleauth', {
@@ -26,6 +46,9 @@ const Login = () => {
 
       const data = await serverResponse.json();
       if (data.jwtToken) {
+        handleLoginSuccess(data.jwtToken, data.message?.navigationUrl);
+      }
+      if (data.jwtToken) {
         localStorage.setItem('token', data.jwtToken);
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('hasCompletedSetup', 'true');
@@ -36,6 +59,7 @@ const Login = () => {
           navigate(data.message.navigationUrl);
         }
       }
+      
     } catch (err) {
       setError('Google login failed. Please try again.');
     }
@@ -106,6 +130,9 @@ const Login = () => {
       }
 
       const data = await response.json();
+      if (data.token) {
+        handleLoginSuccess(data.token, data.navigationUrl);
+      }
 
       if (data.jwtToken) {
         localStorage.setItem('token', data.jwtToken);
@@ -113,6 +140,8 @@ const Login = () => {
         localStorage.setItem('hasCompletedSetup', 'true');
         navigate('/dashboard');
       }
+      
+
     } catch (err) {
       setError('Login failed. Please try again.');
       setStep(1);

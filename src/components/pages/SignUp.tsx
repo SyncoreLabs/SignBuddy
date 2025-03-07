@@ -14,6 +14,25 @@ const SignUp = () => {
   const [error, setError] = useState('');
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
 
+  const handleSignUpSuccess = (token: string) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('isAuthenticated', 'true');
+    
+    // Check for saved document state
+    const savedDocumentState = localStorage.getItem('documentState');
+    const returnToDocument = localStorage.getItem('returnToDocument');
+    
+    if (savedDocumentState && returnToDocument) {
+      const agreement = JSON.parse(savedDocumentState);
+      navigate(returnToDocument, {
+        state: { agreement },
+        replace: true
+      });
+    } else {
+      navigate('/profile-setup');
+    }
+  };
+
   const handleVerifyEmail = async () => {
     try {
       setIsEmailVerifying(true);
@@ -54,6 +73,9 @@ const SignUp = () => {
       }
 
       const data = await serverResponse.json();
+      if (data.token) {
+        handleSignUpSuccess(data.token);
+      }
       if (data.jwtToken) {
         localStorage.setItem('token', data.jwtToken);
         localStorage.setItem('isAuthenticated', 'true');
@@ -133,6 +155,9 @@ const SignUp = () => {
       }
 
       const data = await response.json();
+      if (data.token) {
+        handleSignUpSuccess(data.token);
+      }
 
       if (data.jwtToken) {
         localStorage.setItem('token', data.jwtToken);
@@ -148,6 +173,7 @@ const SignUp = () => {
       } else {
         throw new Error('No token received');
       }
+      
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     }

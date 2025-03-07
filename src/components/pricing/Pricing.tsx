@@ -46,16 +46,24 @@ const Pricing: React.FC = () => {
             'Content-Type': 'application/json'
           }
         });
-
+  
         if (!response.ok) throw new Error('Failed to fetch subscription status');
         
         const data = await response.json();
-        if (data.subscription) {
-          setActiveSubscription({
-            isActive: ['monthly', 'annually'].includes(data.subscription.type),
-            expiryDate: data.subscription.endDate,
-            type: data.subscription.type
-          });
+        if (data.subscription && data.subscription.endDate) {
+          // Check if subscription is valid
+          const endDate = new Date(data.subscription.endDate);
+          const now = new Date();
+          
+          if (endDate > now && endDate.getFullYear() > 1970) {
+            setActiveSubscription({
+              isActive: true,
+              expiryDate: data.subscription.endDate,
+              type: data.subscription.type
+            });
+          } else {
+            setActiveSubscription({ isActive: false });
+          }
         } else {
           setActiveSubscription({ isActive: false });
         }
@@ -64,7 +72,7 @@ const Pricing: React.FC = () => {
         setActiveSubscription({ isActive: false });
       }
     };
-
+  
     fetchSubscriptionStatus();
   }, [isPaymentPopupOpen]);
 
@@ -341,113 +349,141 @@ const Pricing: React.FC = () => {
     fetchPlans();
   }, []);
 
-    // Update the renderActionButton function
-    const renderActionButton = (price: string, credits?: number) => {
-      const token = localStorage.getItem('token');
-      const hasActiveSubscription = activeSubscription.type === 'monthly' || activeSubscription.type === 'annually';
+  const renderActionButton = (price: string, credits?: number) => {
+    const token = localStorage.getItem('token');
+    const hasActiveSubscription = activeSubscription.isActive;
   
-      // For subscription plans, show expiry if active subscription
-      if (!isCreditsTab && hasActiveSubscription) {
-        return (
-          <div className="text-center px-4 py-2 bg-gray-800 rounded-lg text-gray-400">
-            {activeSubscription.type === 'monthly' ? 'Monthly' : 'Annual'} plan - Expires on {new Date(activeSubscription.expiryDate!).toLocaleDateString()}
-          </div>
-        );
-      }
-  
-      // For credits tab, show button if subscription is free or no subscription
-      // For subscription tab, show button only if no active subscription
-      const shouldShowButton = isCreditsTab || !hasActiveSubscription;
-  
+    // For subscription plans, show expiry if active subscription
+    if (!isCreditsTab && hasActiveSubscription) {
       return (
-        <button
-          onClick={() => {
-            if (!token) {
-              navigate('/signup');
-              return;
-            }
-            if (!shouldShowButton) {
-              alert('You already have an active subscription');
-              return;
-            }
-            setSelectedPlan({
-              type: isCreditsTab ? 'credits' : 'subscription',
-              price: price.replace('₹', ''),
-              credits: credits || 0
-            });
-            setIsPaymentPopupOpen(true);
-          }}
-          className={`w-full text-center px-4 py-2 rounded-lg transition-colors font-medium
-            ${!shouldShowButton
-              ? 'bg-gray-300 text-gray-700 cursor-not-allowed' 
-              : 'bg-white text-black hover:bg-gray-100'}`}
-          disabled={!shouldShowButton}
-        >
-          {token 
-            ? (!isCreditsTab && hasActiveSubscription)
-              ? `Active ${activeSubscription.type} plan`
-              : `Get started with ${price}`
-            : "Sign up to continue"}
-        </button>
+        <div className="text-center px-4 py-2 bg-gray-800 rounded-lg text-gray-400">
+          {activeSubscription.type === 'monthly' ? 'Monthly' : 'Annual'} plan - Expires on {new Date(activeSubscription.expiryDate!).toLocaleDateString()}
+        </div>
       );
-    };
+    }
+  
+    // For credits tab or no active subscription
+    return (
+      <button
+        onClick={() => {
+          if (!token) {
+            navigate('/signup');
+            return;
+          }
+          // Prevent subscription purchase if already subscribed
+          if (!isCreditsTab && hasActiveSubscription) {
+            return;
+          }
+          setSelectedPlan({
+            type: isCreditsTab ? 'credits' : 'subscription',
+            price: price.replace('₹', ''),
+            credits: credits || 0
+          });
+          setIsPaymentPopupOpen(true);
+        }}
+        className={`w-full text-center px-4 py-2 rounded-lg transition-colors font-medium
+          ${!isCreditsTab && hasActiveSubscription
+            ? 'bg-gray-300 text-gray-700 cursor-not-allowed' 
+            : 'bg-white text-black hover:bg-gray-100'}`}
+        disabled={!isCreditsTab && hasActiveSubscription}
+      >
+        {token 
+          ? (!isCreditsTab && hasActiveSubscription)
+            ? `Active ${activeSubscription.type} plan`
+            : `Get started with ${price}`
+          : "Sign up to continue"}
+      </button>
+    );
+  };
 
   // Replace the existing faqs array with categorized FAQs
   const faqs = {
     general: [
       {
-        question: 'What is SignFastly?',
-        answer: 'SignFastly is a digital document signing platform that helps you securely sign and manage documents online.'
+        question: 'How does the credits system work?',
+        answer: 'We use a credit-based approach for the entire Platform, each document sent will cost you 10 credits and a reminder would cost a single credit.'
       },
       {
         question: 'Is the platform free to join?',
-        answer: 'Yes, creating an account is completely free. You only pay when you need to sign documents using credits.'
+        answer: "Yes, signing up is completely free. And every month you'll be getting the 30 Credits free refill which could be used to send documents."
       },
       {
         question: 'Can I use the platform on mobile devices?',
-        answer: 'Yes, SignFastly is fully responsive and works on all devices including smartphones and tablets.'
+        answer: 'Absolutely. Our interface adapts to phones and tablets, ensuring a seamless signing experience. Just log in through your mobile browser.'
+      },
+      {
+        question: 'How do I add credits to my account?',
+        answer: 'Click the pricing page at the top, then choose the credit plan you want to purchase and proceed to payment.'
+      },
+      {
+        question: 'What happens once all parties have signed the document?',
+        answer: 'After every party signs, the document is finalized, securely stored, and accessible in your dashboard. Everyone also receives a download link to the completed file in their email.'
       }
     ],
     credits: [
       {
-        question: 'What is a credit based plan?',
-        answer: "Credits are our platform's currency for document signing. Each document sent requires 10 credit, and you can purchase credits in bundles."
+        question: 'Do credits ever expire?',
+        answer: "Purchased credits doesn't have any expiration, they will remain in your account if once purchased. However, promotional or bonus credits may carry an expiration date."
       },
       {
-        question: 'Do credits expire?',
-        answer: 'No, your credits never expire. Once purchased, you can use them anytime without worrying about time limits.'
+        question: 'What if I run out of credits mid-transaction?',
+        answer: "You’ll have to purchase some credits and then proceed with the transaction."
       },
       {
-        question: 'How many signatures per credit?',
-        answer: "We don't charge for each signature we charge per each document sent."
+        question: 'Is there a monthly free credits allowance?',
+        answer: "Yes. Each month, you automatically receive 30 free credits refilled. That covers up to three standard documents at no cost, with any extras requiring additional credits."
+      },
+      {
+        question: 'Can I transfer credits to another user?',
+        answer: "No. Credits stay tied to each individual account. We don’t currently offer team or organizational plans, so each user manages their own credit balance."
+      },
+      {
+        question: 'How do I purchase credits?',
+        answer: "Go to pricing page, pick a credit package, and finalize payment. The purchased credits immediately show in your balance, ready for all document actions."
       }
     ],
     payments: [
       {
-        question: 'What payment methods do you accept?',
-        answer: 'We accept all major credit cards, debit cards, and UPI payments.'
+        question: 'Which payment methods are accepted?',
+        answer: 'In India, we accept credit cards, debit cards, and select local options like UPI or net banking.'
       },
       {
-        question: 'Are there any hidden charges?',
-        answer: 'No, we believe in complete transparency. You only pay for the credits you purchase.'
+        question: 'Are there any hidden fees??',
+        answer: 'No. Our pricing is completely transparent, where we charge 10 credits for sending a document and a reminder would 1 credit. Apart from these two Nothing else.'
       },
       {
-        question: 'Can I get a refund?',
-        answer: 'Unused credits can be refunded within 30 days of purchase.'
+        question: 'How do I view my payment history?',
+        answer: 'Visit your Billing section from the profile menu. You’ll see all past transactions, including purchase dates, amounts, and receipts, which can be easily downloaded or printed.'
+      },
+      {
+        question: 'What if my payment fails?',
+        answer: 'You’ll receive a notification with steps to retry or update your billing details. Contact support if issues persist, and we’ll quickly help resolve payment complications.'
+      },
+      {
+        question: 'Is there a monthly subscription plan?',
+        answer: 'Yes. We have a single monthly plan, plus an annual option with a 15% discount. You can pick whichever best fits your signing needs.'
       }
     ],
     platform: [
       {
-        question: 'Is my data secure?',
-        answer: 'Yes, we use bank-level encryption to secure all your documents and signatures.'
+        question: 'Which file formats are supported?',
+        answer: 'SignBuddy supports PDFs and Word documents. Simply upload your file, and we’ll handle the entire signing process seamlessly.'
       },
       {
-        question: 'Can I integrate with other platforms?',
-        answer: 'Yes, we offer API integration with popular platforms and custom integration solutions.'
+        question: 'Can I customize my signing workflow?',
+        answer: 'You can reorder signers and add fields to each document. We’ll add more customization features in future updates, so stay tuned for additional options.'
       },
       {
-        question: 'What file formats are supported?',
-        answer: 'We support PDF, Word, Excel, and most common document formats.'
+        question: 'Is my data secure on SignBuddy?',
+        answer: 'We use robust encryption, secure servers, and strict routine security audits. Your information stays protected in transit and at rest, meeting all industry-standard privacy requirements.'
+      },
+      {
+        question: 'How do I contact support if I need help?',
+        answer: 'Email us at official@signbuddy.in. We’ll respond as soon as possible to assist with any questions, technical issues, or account concerns you may have.'
+      },
+      {
+        question: 'Is there a limit on the document size I can upload?',
+        answer: 'Yes. You can upload files up to 200 MB. Larger file support is on our roadmap, so please watch for future updates.'
       }
     ]
   };
@@ -802,7 +838,7 @@ const Pricing: React.FC = () => {
       <div className="max-w-3xl mx-auto mt-40 mb-40">
         <h2 className="text-5xl font-bold text-center mb-2">Frequently asked questions</h2>
         <p className="text-gray-400 text-center mb-8 mx-4 md:mx-[100px]">
-          These are the most commonly asked questions about SignFastly. Can't find what you are looking for? Chat with our friendly team!
+          These are the most commonly asked questions about SignBuddy. Can't find what you are looking for? Message us.
         </p>
 
         <div className="flex flex-wrap justify-center gap-2 mb-8">

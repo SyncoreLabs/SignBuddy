@@ -122,6 +122,50 @@ const Dashboard: React.FC = () => {
     const savedTab = localStorage.getItem("dashboardActiveTab");
     return savedTab === "your" || savedTab === "received" ? savedTab : "your";
   });
+  const hasPendingReceivedDocuments = useMemo(() => {
+    return receivedDocuments.some(doc =>
+      doc.status.toLowerCase() === "pending" &&
+      !doc.placeholders.every(p => p.value)
+    );
+  }, [receivedDocuments]);
+
+  const notifyDocumentViewed = async (doc: RecentDocument) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No token found");
+        return;
+      }
+
+      // Get the document data from receivedDocuments
+      const receivedDoc = receivedDocuments.find(
+        (rd) => rd.documentKey === doc.documentKey
+      );
+
+      if (!receivedDoc) {
+        console.error("Document not found in received documents");
+        return;
+      }
+
+      const response = await fetch("https://server.signbuddy.in/api/v1/vieweddocument", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          senderEmail: receivedDoc.recipients[0].email,
+          documentKey: receivedDoc.documentKey
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to notify document view");
+      }
+    } catch (error) {
+      console.error("Error notifying document view:", error);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem("dashboardActiveTab", activeTab);
@@ -131,6 +175,24 @@ const Dashboard: React.FC = () => {
     const indexOfLastDoc = currentPage * documentsPerPage;
     const indexOfFirstDoc = indexOfLastDoc - documentsPerPage;
     return documents.slice(indexOfFirstDoc, indexOfLastDoc);
+  };
+
+  const handleDownload = async (signedDocument: string, title: string) => {
+    try {
+      const response = await fetch(signedDocument);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title}-signed.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Failed to download document');
+    }
   };
 
   const filteredDocuments = useMemo(() => {
@@ -188,6 +250,7 @@ const Dashboard: React.FC = () => {
           documentKey: doc.documentKey,
           documentUrls: doc.documentUrl,
           documentTitle: doc.title,
+          fileKey: doc.documentKey,
           placeholders: doc.placeholders,
           emailData: doc.emailData || {},
           recipients: doc.recipients.map(r => ({
@@ -255,23 +318,23 @@ const Dashboard: React.FC = () => {
 
         // Update received documents (incoming agreements)
         if (data.incomingAgreements) {
-      const transformedAgreements = data.incomingAgreements.map(
-        (agreement: IncomingAgreement) => ({
-          documentKey: agreement.agreementKey,
-          title: agreement.title,
-          documentUrl: agreement.imageUrls,
-          status: agreement.status,
-          recipients: [
-            { email: agreement.senderEmail, name: agreement.senderEmail },
-          ],
-          signedDocument: null,
-          placeholders: agreement.placeholders,
-          drafts: [],
-          receivedAt: agreement.receivedAt,
-        })
-      );
-      setReceivedDocuments([...transformedAgreements].reverse());
-    }
+          const transformedAgreements = data.incomingAgreements.map(
+            (agreement: IncomingAgreement) => ({
+              documentKey: agreement.agreementKey,
+              title: agreement.title,
+              documentUrl: agreement.imageUrls,
+              status: agreement.status,
+              recipients: [
+                { email: agreement.senderEmail, name: agreement.senderEmail },
+              ],
+              signedDocument: null,
+              placeholders: agreement.placeholders,
+              drafts: [],
+              receivedAt: agreement.receivedAt,
+            })
+          );
+          setReceivedDocuments([...transformedAgreements].reverse());
+        }
       } catch (error) {
         console.error("Error fetching documents:", error);
       } finally {
@@ -399,34 +462,48 @@ const Dashboard: React.FC = () => {
       console.log("No preview available for this document");
       return;
     }
-  
-    // Only include placeholders that have values
-    const formattedPlaceholders = doc.placeholders
-      .filter(p => p.value) // Only keep placeholders that have values
-      .map(p => ({
-        position: {
-          x: p.position.x,
-          y: p.position.y
-        },
-        size: {
-          width: p.size.width,
-          height: p.size.height
-        },
-        type: p.type,
-        assignedTo: p.assignedTo,
-        email: p.email,
-        pageNumber: p.pageNumber,
-        placeholderNumber: p.placeholderNumber,
-        value: p.value,
-        displayValue: p.type === 'signature' ? {
-          type: 'image',
-          data: p.value // Direct S3 URL for signatures
-        } : {
-          type: 'text',
-          data: p.value
-        }
-      }));
-  
+
+    // If it's a received document, notify the server
+    if (activeTab === "received") {
+      notifyDocumentViewed(doc);
+    }
+
+    const formattedPlaceholders = doc.placeholders.map(p => {
+      if (p.value) {
+        return {
+          position: p.position,
+          size: p.size,
+          pageNumber: p.pageNumber,
+          placeholderNumber: p.placeholderNumber,
+          display: {
+            type: p.type,
+            value: p.value,
+            showContainer: false,
+            style: {
+              fontSize: p.type === 'text' ? '16px' : undefined,
+              width: p.type === 'signature' ? '100%' : undefined,
+              height: p.type === 'signature' ? '100%' : undefined,
+              objectFit: p.type === 'signature' ? 'contain' : undefined,
+              textAlign: 'left',
+              color: '#09090b'
+            }
+          }
+        };
+      } else {
+        return {
+          position: p.position,
+          size: p.size,
+          pageNumber: p.pageNumber,
+          placeholderNumber: p.placeholderNumber,
+          display: {
+            type: 'placeholder',
+            content: `${p.type} (${p.assignedTo})`,
+            showContainer: true
+          }
+        };
+      }
+    });
+
     setSelectedDocument({
       title: doc.title,
       pages: doc.documentUrl,
@@ -539,7 +616,10 @@ const Dashboard: React.FC = () => {
           <div className="bg-black/40 rounded-xl p-3 border border-white/30">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-base text-white mb-1">Templates</h2>
+                <div className="flex">
+                  <h2 className="text-base text-white mb-1 mr-3 ">Templates</h2>
+                  <span className="bg-[#FBB03B] text-black flex items-center text-xs px-2 h-fit py-0.5 rounded-full">Coming soon</span>
+                </div>
                 <p className="text-3xl font-bold">
                   {userData?.templatesCount || 0}
                 </p>
@@ -601,6 +681,7 @@ const Dashboard: React.FC = () => {
                 >
                   Your Documents
                 </button>
+                <div className="relative">
                 <button
                   onClick={() => setActiveTab("received")}
                   className={`px-3 py-1.5 rounded-md transition-colors text-sm ${activeTab === "received"
@@ -610,6 +691,10 @@ const Dashboard: React.FC = () => {
                 >
                   Received Documents
                 </button>
+                {hasPendingReceivedDocuments && activeTab !== "received" && (
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full" />
+                )}
+              </div>
               </div>
             </div>
             <div className="rounded-lg border border-white/30">
@@ -885,20 +970,34 @@ const Dashboard: React.FC = () => {
                                   </svg>
                                   View
                                 </button>
-                                {doc.status.toLowerCase() === "draft" ? (
+                                {doc.signedDocument ? (
                                   <button
-                                    onClick={() => handleCompleteDraft(doc)}
-                                    className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
+                                    onClick={() => handleDownload(doc.signedDocument!, doc.title)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-green-600/40 hover:border-green-500/50 hover:text-green-500 transition-all"
                                   >
-                                    Complete
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Download
                                   </button>
                                 ) : (
-                                  <button
-                                    onClick={() => handleSendReminder(doc)}
-                                    className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
-                                  >
-                                    Send Reminder
-                                  </button>
+                                  activeTab === "your" && doc.status.toLowerCase() === "draft" ? (
+                                    <button
+                                      onClick={() => handleCompleteDraft(doc)}
+                                      className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
+                                    >
+                                      Complete
+                                    </button>
+                                  ) : (
+                                    !doc.signedDocument && (
+                                      <button
+                                        onClick={() => handleSendReminder(doc)}
+                                        className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
+                                      >
+                                        Send Reminder
+                                      </button>
+                                    )
+                                  )
                                 )}
                                 <button
                                   onClick={() =>
@@ -995,28 +1094,45 @@ const Dashboard: React.FC = () => {
                                   </svg>
                                   View
                                 </button>
-                                {doc.status.toLowerCase() === "pending" && (
+                                {doc.signedDocument ? (
                                   <button
-                                    onClick={() => navigate(`/sign/${doc.documentKey}`, {
-                                      state: {
-                                        agreement: {
-                                          ...doc,
-                                          placeholders: doc.placeholders.map(p => ({
-                                            position: p.position,
-                                            size: p.size,
-                                            placeholderNumber: p.placeholderNumber,
-                                            type: p.type,
-                                            assignedTo: p.assignedTo,
-                                            email: p.email,
-                                            pageNumber: p.pageNumber
-                                          }))
-                                        }
-                                      }
-                                    })}
-                                    className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
+                                    onClick={() => handleDownload(doc.signedDocument!, doc.title)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-green-600/40 hover:border-green-500/50 hover:text-green-500 transition-all"
                                   >
-                                    Sign
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Download
                                   </button>
+                                ) : (
+                                  doc.status.toLowerCase() === "pending" && !doc.placeholders.every(p => p.value) && (
+                                    <button
+                                      onClick={() => {
+                                        if (activeTab === "received") {
+                                          notifyDocumentViewed(doc);
+                                        }
+                                        navigate(`/sign/${doc.documentKey}`, {
+                                          state: {
+                                            agreement: {
+                                              ...doc,
+                                              placeholders: doc.placeholders.map(p => ({
+                                                position: p.position,
+                                                size: p.size,
+                                                placeholderNumber: p.placeholderNumber,
+                                                type: p.type,
+                                                assignedTo: p.assignedTo,
+                                                email: p.email,
+                                                pageNumber: p.pageNumber
+                                              }))
+                                            }
+                                          }
+                                        });
+                                      }}
+                                      className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
+                                    >
+                                      Sign
+                                    </button>
+                                  )
                                 )}
                               </div>
                             </td>
@@ -1076,6 +1192,7 @@ const Dashboard: React.FC = () => {
               >
                 Your Documents
               </button>
+              <div className="relative">
               <button
                 onClick={() => setActiveTab("received")}
                 className={`flex-1 px-4 py-2 rounded-md transition-colors ${activeTab === "received"
@@ -1085,7 +1202,80 @@ const Dashboard: React.FC = () => {
               >
                 Received Documents
               </button>
+              {hasPendingReceivedDocuments && activeTab !== "received" && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full" />
+              )}
+              </div>
             </div>
+
+            {/* Status Filter for Mobile */}
+            {activeTab === "your" && (
+              <div className="mb-4">
+                <div className="relative status-filter">
+                  <button
+                    onClick={() => setShowStatusFilter(!showStatusFilter)}
+                    className="flex items-center gap-2 transition-colors hover:text-white w-full bg-black/40 border border-white/30 rounded-lg px-4 py-2"
+                  >
+                    Status {statusFilter.length > 0 && `(${statusFilter.length})`}
+                    <svg
+                      className="w-4 h-4 ml-auto"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  {showStatusFilter && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-white/30 rounded-lg shadow-lg z-50">
+                      {["All", "draft", "viewed", "completed", "pending"].map((status) => (
+                        <button
+                          key={status}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStatusFilter(status.toLowerCase() as DocumentStatus);
+                          }}
+                          className={`w-full text-left px-3 py-1.5 text-sm flex items-center justify-between ${status === "All"
+                            ? statusFilter.length === 0
+                              ? "text-white bg-black"
+                              : "text-gray-400"
+                            : statusFilter.includes(status.toLowerCase() as DocumentStatus)
+                              ? "text-white bg-black"
+                              : "text-gray-400"
+                            }`}
+                        >
+                          <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                          {(status === "All"
+                            ? statusFilter.length === 0
+                            : statusFilter.includes(
+                              status.toLowerCase() as DocumentStatus
+                            )) && (
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               {(activeTab === "your"
@@ -1114,30 +1304,25 @@ const Dashboard: React.FC = () => {
                           onClick={() => handlePreviewDocument(doc)}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                            />
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
                           View
                         </button>
-                        {activeTab === "your" ? (
-                          <>
-                            {doc.status.toLowerCase() === "draft" ? (
+                        {doc.signedDocument ? (
+                          <button
+                            onClick={() => handleDownload(doc.signedDocument!, doc.title)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-green-600/40 hover:border-green-500/50 hover:text-green-500 transition-all"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download
+                          </button>
+                        ) : (
+                          activeTab === "your" ? (
+                            doc.status.toLowerCase() === "draft" ? (
                               <button
                                 onClick={() => handleCompleteDraft(doc)}
                                 className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
@@ -1151,42 +1336,36 @@ const Dashboard: React.FC = () => {
                               >
                                 Send Reminder
                               </button>
-                            )}
-                            <button
-                              onClick={() =>
-                                handleDeleteDocument(
-                                  doc.title,
-                                  doc.documentKey,
-                                  doc.status.toLowerCase() === 'draft' ? 'draft' : 'agreement'
-                                )
-                              }
-                              className="p-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
+                            )
+                          ) : (
+                            doc.status.toLowerCase() === "pending" && (
+                              <button
+                                onClick={() => {
+                                  if (activeTab === "received") {
+                                    notifyDocumentViewed(doc);
+                                  }
+                                  navigate(`/sign/${doc.documentKey}`, {
+                                    state: {
+                                      agreement: {
+                                        ...doc,
+                                        placeholders: doc.placeholders.map(p => ({
+                                          position: p.position,
+                                          size: p.size,
+                                          placeholderNumber: p.placeholderNumber,
+                                          type: p.type,
+                                          assignedTo: p.assignedTo,
+                                          email: p.email,
+                                          pageNumber: p.pageNumber
+                                        }))
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg hover:bg-blue-600/40 hover:border-blue-500/50 hover:text-blue-500 transition-all"
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
-                            </button>
-                          </>
-                        ) : (
-                          doc.status.toLowerCase() === "pending" && (
-                            <button
-                              onClick={() =>
-                                navigate(`/sign/${doc.documentKey}`)
-                              }
-                              className="px-3 py-1.5 text-sm bg-black/40 border border-white/30 rounded-lg"
-                            >
-                              Sign
-                            </button>
+                                Sign
+                              </button>
+                            )
                           )
                         )}
                       </div>
@@ -1196,24 +1375,16 @@ const Dashboard: React.FC = () => {
                       <div>
                         <p className="text-gray-400 mb-2">Status</p>
                         <div className="flex items-center gap-2 text-gray-400">
-                          <svg
-                            className="w-4 h-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d={
-                                doc.status === "completed"
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
+                              activeTab === "your"
+                                ? doc.status === "completed"
                                   ? "M5 13l4 4L19 7"
                                   : "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                              }
-                            />
+                                : "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            } />
                           </svg>
-                          {doc.status}
+                          {activeTab === "your" ? doc.status : doc.receivedAt || 'Recently'}
                         </div>
                       </div>
                       <div>
@@ -1242,21 +1413,11 @@ const Dashboard: React.FC = () => {
 
                     <div className="bg-black/40 rounded-lg p-3">
                       <div className="flex items-center gap-2 text-gray-400">
-                        <svg
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm">
-                          {getRecipientUpdateText(doc)}
+                          {activeTab === "your" ? getRecipientUpdateText(doc) : doc.lastUpdate || 'No recent updates'}
                         </span>
                       </div>
                     </div>

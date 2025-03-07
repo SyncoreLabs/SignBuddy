@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import lightningIcon from '../../assets/images/credits-icon.png';
 import infinity from '../../assets/images/infinite.png';
@@ -16,12 +16,21 @@ interface Subscription {
   timeStamp: string;
 }
 
+interface BillingHistory {
+  paymentId: string;
+  invoiceUrl: string;
+  dateOfPurchase: string;
+  amount: number;
+  planName: string;
+  creditsPurchased: string;
+  creditsPrice: string;
+  _id: string;
+}
+
 const Billing = () => {
   usePageTitle('Billing');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const totalItems = 15; // Replace with actual total count from your data
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
   const [activeSubscription, setActiveSubscription] = useState<{
     isActive: boolean;
     expiryDate?: string;
@@ -29,9 +38,12 @@ const Billing = () => {
     credits?: number;
   }>({ isActive: false });
   const [creditsHistory, setCreditsHistory] = useState([]);
-const [isLoading, setIsLoading] = useState(true);
-const [totalCredits, setTotalCredits] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalCredits, setTotalCredits] = useState(0);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [billingHistory, setBillingHistory] = useState<BillingHistory[]>([]);
+    // Add this where the pagination controls are
+    const totalPages = Math.ceil(billingHistory.length / itemsPerPage);
 
   const navigateToPricing = () => {
     window.location.href = '/pricing';
@@ -45,7 +57,7 @@ const [totalCredits, setTotalCredits] = useState(0);
     }
   }, []);
 
-  useEffect(() => {
+useLayoutEffect(() => {
     const fetchCreditsHistory = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -58,13 +70,37 @@ const [totalCredits, setTotalCredits] = useState(0);
         });
 
         if (!response.ok) throw new Error('Failed to fetch credits history');
-        
+
         const data = await response.json();
+        console.log('API Response:', data); // Debug log
         setTotalCredits(data.credits);
         setCreditsHistory(data.creditsHistory || []);
-        setSubscription(data.subsription);
+        setBillingHistory(data.billingHistory || []);
+        
+        // Check if subscription data exists and has the required fields
+        if (data.subscription && data.subscription.type) {
+          console.log('Setting subscription:', data.subscription); // Debug log
+          setSubscription({
+            type: data.subscription.type,
+            endDate: data.subscription.endDate || null,
+            timeStamp: data.subscription.timeStamp || ''
+          });
+        } else {
+          console.log('No valid subscription data found'); // Debug log
+          setSubscription({
+            type: 'free',
+            endDate: null,
+            timeStamp: ''
+          });
+        }
       } catch (error) {
         console.error('Error fetching credits history:', error);
+        // Set default subscription state on error
+        setSubscription({
+          type: 'free',
+          endDate: null,
+          timeStamp: ''
+        });
       } finally {
         setIsLoading(false);
       }
@@ -118,19 +154,17 @@ const [totalCredits, setTotalCredits] = useState(0);
                   </h2>
                   <p className="text-gray-400 text-sm mb-2">
                     For teams who needs multiple documents and will have multiple users to manage legalities
-                  </p>
+                  </p>{console.log(subscription)}
                   <div className="bg-gray-800/50 rounded-lg p-2 text-center text-sm">
-                    Expires on {subscription?.endDate ? new Date(subscription.endDate).toLocaleDateString() : 'N/A'}
-                  </div>
+                  Expires on {new Date(subscription?.endDate || '').toLocaleDateString() || 'N/A'}                  </div>
                 </>
               )}
             </div>
 
             {/* Billing History */}
-            <div className="bg-black/40 rounded-xl border border-white/30 p-3 lg:overflow-y-auto h-auto lg:h-auto lg:flex-1">
-              <h2 className="text-lg font-semibold mb-2">Billing History</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+            <div className="bg-black/40 rounded-xl border border-white/30 p-3 lg:overflow-y-auto h-auto lg:h-[417px] lg:flex-1 flex flex-col">              <h2 className="text-lg font-semibold mb-2">Billing History</h2>
+              <div className="overflow-x-auto flex-1">
+              <table className="w-full">
                   <thead>
                     <tr className="border-b border-white/10">
                       <th className="text-left py-3 text-gray-400 font-medium">Plan name</th>
@@ -140,26 +174,38 @@ const [totalCredits, setTotalCredits] = useState(0);
                     </tr>
                   </thead>
                   <tbody>
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <tr key={index} className="border-b border-white/10">
-                        <td className="py-3">Monthly Plan - {['Jun', 'May', 'Apr', 'Mar', 'Feb'][index]}, 2024</td>
-                        <td className="py-3">₹ 699</td>
-                        <td className="py-3">Feb 14, 2024</td>
+                    {billingHistory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item) => (
+                      <tr key={item._id} className="border-b border-white/10">
                         <td className="py-3">
-                          <button className="flex items-center gap-2 px-3 py-1 bg-gray-700/50 rounded-lg text-sm">
+                          {item.planName === 'credits'
+                            ? `Credits - ${item.creditsPurchased} credits`
+                            : item.planName === 'yearly'
+                              ? 'Yearly Plan'
+                              : item.planName === 'monthly'
+                                ? 'Monthly Plan'
+                                : item.planName}
+                        </td>
+                        <td className="py-3">₹ {item.amount}</td>
+                        <td className="py-3">{new Date(item.dateOfPurchase).toLocaleDateString()}</td>
+                        <td className="py-3">
+                          <a
+                            href={item.invoiceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-1 bg-gray-700/50 rounded-lg text-sm hover:bg-gray-600/50 transition-colors"
+                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
                             Invoice
-                          </button>
+                          </a>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center justify-end mt-4 text-sm text-gray-400">
-                <div className="flex items-center gap-4">
+              <div className="flex items-center justify-end pt-4 text-sm text-gray-400 mt-auto border-t border-white/10">                <div className="flex items-center gap-4">
                   <span>Page {currentPage} of {totalPages}</span>
                   <div className="flex gap-2">
                     <button
@@ -215,22 +261,21 @@ const [totalCredits, setTotalCredits] = useState(0);
                     <div>
                       <h3 className="text-lg font-medium">
                         {item.thingUsed === 'documentSent' ? 'Document Sent' :
-                         item.thingUsed === 'monthly refilled' ? 'Monthly Refresh' :
-                         item.thingUsed === 'purchased' ? 'Credits Purchased' : item.thingUsed}
+                          item.thingUsed === 'monthly refilled' ? 'Monthly Refresh' :
+                            item.thingUsed === 'purchased' ? 'Credits Purchased' : item.thingUsed}
                       </h3>
                       <p className="text-gray-500">
                         {item.thingUsed === 'documentSent' ? 'Document has been sent' :
-                         item.thingUsed === 'monthly refilled' ? 'Monthly credit refresh' :
-                         item.thingUsed === 'purchased' ? 'Purchased credits' : ''}
+                          item.thingUsed === 'monthly refilled' ? 'Monthly credit refresh' :
+                            item.thingUsed === 'purchased' ? 'Purchased credits' : ''}
                       </p>
                       <p className="text-gray-600 text-sm">
                         {new Date(item.timestamp).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${
-                        item.thingUsed === 'documentSent' ? 'bg-[#2C1212] text-[#FF4747]' : 'bg-[#122C12] text-[#47FF47]'
-                      }`}>
+                      <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${item.thingUsed === 'documentSent' ? 'bg-[#2C1212] text-[#FF4747]' : 'bg-[#122C12] text-[#47FF47]'
+                        }`}>
                         <img src={lightningIcon} alt="Credits" className="w-4 h-4" />
                         {item.creditsUsed}
                       </div>

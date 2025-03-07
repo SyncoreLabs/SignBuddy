@@ -48,6 +48,8 @@ interface SignaturePopupProps {
   onSave: (data: string) => void;
   type: "signature" | "date" | "text";
 }
+
+
 const SignaturePopup: React.FC<SignaturePopupProps> = ({
   isOpen,
   onClose,
@@ -527,6 +529,7 @@ const SignaturePopup: React.FC<SignaturePopupProps> = ({
 };
 
 const DocumentSigning: React.FC = () => {
+
   const [selectedPlaceholder, setSelectedPlaceholder] =
     useState<PlaceholderData | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -539,6 +542,8 @@ const DocumentSigning: React.FC = () => {
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const location = useLocation();
   const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const agreement = location.state?.agreement as Agreement;
 
   const handleCompleteDocument = async () => {
@@ -883,6 +888,84 @@ const DocumentSigning: React.FC = () => {
       </button>
     );
   };
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          // Store current URL and document state before redirecting
+          localStorage.setItem('returnToDocument', window.location.pathname);
+          if (location.state?.agreement) {
+            localStorage.setItem('documentState', JSON.stringify(location.state.agreement));
+          }
+          throw new Error("No token found");
+        }
+
+        const response = await fetch("https://server.signbuddy.in/api/v1/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Invalid token");
+        }
+
+        setIsAuthenticated(true);
+        setIsLoading(false);
+
+        // Check for saved document state only if there's no current agreement
+        if (!location.state?.agreement) {
+          const savedDocumentState = localStorage.getItem('documentState');
+          if (savedDocumentState) {
+            try {
+              const agreement = JSON.parse(savedDocumentState);
+              // Clean up stored state
+              localStorage.removeItem('documentState');
+              localStorage.removeItem('returnToDocument');
+              // Use replace to avoid adding to history stack
+              navigate(window.location.pathname, { 
+                state: { agreement },
+                replace: true 
+              });
+              return; // Exit early after navigation
+            } catch (e) {
+              console.error('Error parsing saved document state:', e);
+            }
+          }
+          // Only navigate to dashboard if no saved state and no current agreement
+          navigate('/dashboard', { 
+            state: { error: "No document found to sign" },
+            replace: true
+          });
+        }
+      } catch (error) {
+        console.error("Authentication error:", error);
+        navigate("/login", { 
+          state: { 
+            returnUrl: localStorage.getItem('returnToDocument') || window.location.pathname,
+            message: "Please login to access document signing" 
+          },
+          replace: true
+        });
+      }
+    };
+
+    checkAuth();
+  }, [navigate, location.state?.agreement]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !location.state?.agreement) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">
