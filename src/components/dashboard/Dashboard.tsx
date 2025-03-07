@@ -462,48 +462,122 @@ const Dashboard: React.FC = () => {
       console.log("No preview available for this document");
       return;
     }
-
-    // If it's a received document, notify the server
+  
     if (activeTab === "received") {
       notifyDocumentViewed(doc);
     }
-
-    const formattedPlaceholders = doc.placeholders.map(p => {
+  
+    const formattedPlaceholders = (doc.placeholders || []).map(p => {
+      // Skip if placeholder is invalid
+      if (!p) return null;
+  
+      // Ensure position and size have valid values
+      const position = {
+        x: p.position?.x || '0px',
+        y: p.position?.y || '0px'
+      };
+      
+      const size = {
+        width: p.size?.width || '100px',
+        height: p.size?.height || '40px'
+      };
+  
       if (p.value) {
-        return {
-          position: p.position,
-          size: p.size,
-          pageNumber: p.pageNumber,
-          placeholderNumber: p.placeholderNumber,
-          display: {
-            type: p.type,
-            value: p.value,
-            showContainer: false,
-            style: {
-              fontSize: p.type === 'text' ? '16px' : undefined,
-              width: p.type === 'signature' ? '100%' : undefined,
-              height: p.type === 'signature' ? '100%' : undefined,
-              objectFit: p.type === 'signature' ? 'contain' : undefined,
-              textAlign: 'left',
-              color: '#09090b'
-            }
-          }
+        let displayValue = p.value;
+        let style = {
+          position: 'absolute' as const,
+          left: position.x,
+          top: position.y,
+          width: size.width,
+          height: size.height,
+          backgroundColor: 'white'
         };
-      } else {
-        return {
-          position: p.position,
-          size: p.size,
-          pageNumber: p.pageNumber,
-          placeholderNumber: p.placeholderNumber,
-          display: {
-            type: 'placeholder',
-            content: `${p.type} (${p.assignedTo})`,
-            showContainer: true
+  
+        if (p.type === 'signature') {
+          try {
+            const parsedValue = JSON.parse(p.value);
+            if (parsedValue.text) {
+              displayValue = parsedValue.text;
+              style = {
+                ...style,
+                fontFamily: parsedValue.font || 'dancing-script',
+                fontSize: '48px',
+                color: '#09090b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center' as const
+              };
+            } else if (parsedValue.imageData) {
+              displayValue = parsedValue.imageData;
+              style = {
+                ...style,
+                objectFit: 'contain' as const,
+                transform: `rotate(${parsedValue.rotation || 0}deg) scale(${parsedValue.zoom || 1})`
+              };
+            }
+          } catch {
+            style = {
+              ...style,
+              objectFit: 'contain' as const
+            };
           }
+        } else if (p.type === 'text' || p.type === 'date') {
+          try {
+            if (p.type === 'text') {
+              const parsedValue = JSON.parse(p.value);
+              displayValue = parsedValue.text || p.value;
+            }
+            style = {
+              ...style,
+              fontSize: '16px',
+              color: '#09090b',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 8px',
+              backgroundColor: 'white',
+              border: 'none',
+              borderRadius: '4px'
+            };
+          } catch {
+            // Use value as-is if not JSON
+          }
+        }
+  
+        return {
+          pageNumber: p.pageNumber || 1,
+          placeholderNumber: p.placeholderNumber,
+          type: p.type,
+          value: displayValue,
+          style,
+          showContainer: false
         };
       }
-    });
-
+  
+      return {
+        pageNumber: p.pageNumber || 1,
+        placeholderNumber: p.placeholderNumber,
+        type: 'placeholder',
+        content: `${p.type || 'Unknown'} (${p.assignedTo || 'Unassigned'})`,
+        style: {
+          position: 'absolute' as const,
+          left: position.x,
+          top: position.y,
+          width: size.width,
+          height: size.height,
+          border: '2px dashed rgba(255, 255, 255, 0.3)',
+          borderRadius: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'rgba(255, 255, 255, 0.6)',
+          fontSize: '14px',
+          backgroundColor: 'rgba(0, 0, 0, 0.2)'
+        },
+        showContainer: true
+      };
+    }).filter(Boolean); // Remove any null values
+  
     setSelectedDocument({
       title: doc.title,
       pages: doc.documentUrl,
@@ -616,7 +690,7 @@ const Dashboard: React.FC = () => {
           <div className="bg-black/40 rounded-xl p-3 border border-white/30">
             <div className="flex items-start justify-between">
               <div>
-                <div className="flex">
+                <div className="flex flex-col sm:flex-row">
                   <h2 className="text-base text-white mb-1 mr-3 ">Templates</h2>
                   <span className="bg-[#FBB03B] text-black flex items-center text-xs px-2 h-fit py-0.5 rounded-full">Coming soon</span>
                 </div>
@@ -682,19 +756,19 @@ const Dashboard: React.FC = () => {
                   Your Documents
                 </button>
                 <div className="relative">
-                <button
-                  onClick={() => setActiveTab("received")}
-                  className={`px-3 py-1.5 rounded-md transition-colors text-sm ${activeTab === "received"
-                    ? "bg-white/10 text-white"
-                    : "text-gray-400 hover:text-white"
-                    }`}
-                >
-                  Received Documents
-                </button>
-                {hasPendingReceivedDocuments && activeTab !== "received" && (
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full" />
-                )}
-              </div>
+                  <button
+                    onClick={() => setActiveTab("received")}
+                    className={`px-3 py-1.5 rounded-md transition-colors text-sm ${activeTab === "received"
+                      ? "bg-white/10 text-white"
+                      : "text-gray-400 hover:text-white"
+                      }`}
+                  >
+                    Received Documents
+                  </button>
+                  {hasPendingReceivedDocuments && activeTab !== "received" && (
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full" />
+                  )}
+                </div>
               </div>
             </div>
             <div className="rounded-lg border border-white/30">
@@ -1105,7 +1179,10 @@ const Dashboard: React.FC = () => {
                                     Download
                                   </button>
                                 ) : (
-                                  doc.status.toLowerCase() === "pending" && !doc.placeholders.every(p => p.value) && (
+                                  doc.status.toLowerCase() === "pending" &&
+                                  !doc.placeholders
+                                    .filter(p => p.email === userData?.user.email)
+                                    .every(p => p.value) && (
                                     <button
                                       onClick={() => {
                                         if (activeTab === "received") {
@@ -1193,18 +1270,18 @@ const Dashboard: React.FC = () => {
                 Your Documents
               </button>
               <div className="relative">
-              <button
-                onClick={() => setActiveTab("received")}
-                className={`flex-1 px-4 py-2 rounded-md transition-colors ${activeTab === "received"
-                  ? "bg-white/10 text-white"
-                  : "text-gray-400 hover:text-white"
-                  }`}
-              >
-                Received Documents
-              </button>
-              {hasPendingReceivedDocuments && activeTab !== "received" && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full" />
-              )}
+                <button
+                  onClick={() => setActiveTab("received")}
+                  className={`flex-1 px-4 py-2 rounded-md transition-colors ${activeTab === "received"
+                    ? "bg-white/10 text-white"
+                    : "text-gray-400 hover:text-white"
+                    }`}
+                >
+                  Received Documents
+                </button>
+                {hasPendingReceivedDocuments && activeTab !== "received" && (
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full" />
+                )}
               </div>
             </div>
 
@@ -1338,7 +1415,10 @@ const Dashboard: React.FC = () => {
                               </button>
                             )
                           ) : (
-                            doc.status.toLowerCase() === "pending" && (
+                            doc.status.toLowerCase() === "pending" &&
+                            !doc.placeholders
+                              .filter(p => p.email === userData?.user.email)
+                              .every(p => p.value) && (
                               <button
                                 onClick={() => {
                                   if (activeTab === "received") {

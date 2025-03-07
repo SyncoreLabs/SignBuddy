@@ -113,6 +113,18 @@ const [fileKey, setfileKey] = useState<string>("");
     if (isSignatory) signers.push("You");
     return signers;
   };
+
+const handleLogout = () => {
+    // Clear all authentication-related items from localStorage
+    localStorage.clear();
+    setUserData(null);
+    setIsProfileOpen(false);
+
+    // Navigate and reload
+    navigate('/', { replace: true });
+    window.location.reload();
+  };
+
   useEffect(() => {
     if (!state?.documentUrls || state.documentUrls.length === 0) {
       console.error('No document URLs found:', state);
@@ -692,6 +704,7 @@ const [fileKey, setfileKey] = useState<string>("");
                       </Link>
                       <Link
                         to="/logout"
+                        onClick={handleLogout}
                         className="block px-4 py-2 text-sm font-semibold text-red-500 hover:bg-black/60"
                       >
                         Log out

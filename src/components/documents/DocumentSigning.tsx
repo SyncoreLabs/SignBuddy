@@ -546,6 +546,17 @@ const DocumentSigning: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const agreement = location.state?.agreement as Agreement;
 
+  const handleLogout = () => {
+    // Clear all authentication-related items from localStorage
+    localStorage.clear();
+    setUserData(null);
+    setIsProfileOpen(false);
+
+    // Navigate and reload
+    navigate('/', { replace: true });
+    window.location.reload();
+  };
+
   const handleCompleteDocument = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -1061,7 +1072,8 @@ const DocumentSigning: React.FC = () => {
                       Billing
                     </Link>
                     <Link
-                      to="/logout"
+                      to="/"
+                      onClick={handleLogout}
                       className="block px-4 py-2 text-sm font-semibold text-red-500 hover:bg-black/60"
                     >
                       Log out
