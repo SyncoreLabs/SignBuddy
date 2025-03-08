@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 
 interface RecentDocument {
   documentKey: string;
+  imageUrls?: string[];
   title: string;
   documentUrl: string[];
   status: string;
@@ -63,11 +64,13 @@ interface IncomingAgreement {
   senderEmail: string;
   imageUrls: string[];
   title: string;
+  signedDocument: string | null;
   placeholders: {
     placeholderNumber: number;
     position: { x: string; y: string };
     type: string;
     size: { width: string; height: string };
+    recipientsAvatar?: string;
     assignedTo: string;
     email: string;
     pageNumber: number;
@@ -122,6 +125,10 @@ const Dashboard: React.FC = () => {
     const savedTab = localStorage.getItem("dashboardActiveTab");
     return savedTab === "your" || savedTab === "received" ? savedTab : "your";
   });
+  const [completedSignings, setCompletedSignings] = useState<string[]>(() => {
+    const saved = localStorage.getItem("completedSignings");
+    return saved ? JSON.parse(saved) : [];
+  });
   const hasPendingReceivedDocuments = useMemo(() => {
     return receivedDocuments.some(doc =>
       doc.status.toLowerCase() === "pending" &&
@@ -139,7 +146,7 @@ const Dashboard: React.FC = () => {
 
       // Get the document data from receivedDocuments
       const receivedDoc = receivedDocuments.find(
-        (rd) => rd.documentKey === doc.documentKey
+        (rd) => rd.agreementKey === doc.agreementKey || rd.documentKey === doc.documentKey
       );
 
       if (!receivedDoc) {
@@ -155,7 +162,7 @@ const Dashboard: React.FC = () => {
         },
         body: JSON.stringify({
           senderEmail: receivedDoc.recipients[0].email,
-          documentKey: receivedDoc.documentKey
+          documentKey: receivedDoc.agreementKey || receivedDoc.documentKey
         }),
       });
 
@@ -166,6 +173,9 @@ const Dashboard: React.FC = () => {
       console.error("Error notifying document view:", error);
     }
   };
+  useEffect(() => {
+    localStorage.setItem("completedSignings", JSON.stringify(completedSignings));
+  }, [completedSignings]);
 
   useEffect(() => {
     localStorage.setItem("dashboardActiveTab", activeTab);
@@ -269,7 +279,15 @@ const Dashboard: React.FC = () => {
 
   const getRecipientUpdateText = (doc: RecentDocument) => {
     if (activeTab === "received") {
-      return `Document received ${doc.receivedAt || "recently"}`;
+      const status = doc.status.toLowerCase();
+      if (status === "completed") {
+        return "Document has been signed";
+      } else if (status === "viewed") {
+        return "Document has been viewed";
+      } else if (status === "pending") {
+        return "Waiting for your signature";
+      }
+      return `Document received ${doc.receivedAt ? new Date(doc.receivedAt).toLocaleDateString() : "recently"}`;
     }
 
     if (!doc.recipients || doc.recipients.length === 0) {
@@ -318,22 +336,7 @@ const Dashboard: React.FC = () => {
 
         // Update received documents (incoming agreements)
         if (data.incomingAgreements) {
-          const transformedAgreements = data.incomingAgreements.map(
-            (agreement: IncomingAgreement) => ({
-              documentKey: agreement.agreementKey,
-              title: agreement.title,
-              documentUrl: agreement.imageUrls,
-              status: agreement.status,
-              recipients: [
-                { email: agreement.senderEmail, name: agreement.senderEmail },
-              ],
-              signedDocument: null,
-              placeholders: agreement.placeholders,
-              drafts: [],
-              receivedAt: agreement.receivedAt,
-            })
-          );
-          setReceivedDocuments([...transformedAgreements].reverse());
+          setReceivedDocuments([...data.incomingAgreements].reverse());
         }
       } catch (error) {
         console.error("Error fetching documents:", error);
@@ -458,129 +461,62 @@ const Dashboard: React.FC = () => {
   };
 
   const handlePreviewDocument = (doc: RecentDocument) => {
-    if (!doc.documentUrl || doc.documentUrl.length === 0) {
-      console.log("No preview available for this document");
-      return;
-    }
+    const documentUrls = activeTab === "received" ? doc.imageUrls || doc.documentUrl : doc.documentUrl;
+     if (!documentUrls || documentUrls.length === 0) {
+    console.log("No preview available for this document");
+    return;
+  }
   
+    // If it's a received document, notify the server
     if (activeTab === "received") {
       notifyDocumentViewed(doc);
     }
   
-    const formattedPlaceholders = (doc.placeholders || []).map(p => {
-      // Skip if placeholder is invalid
-      if (!p) return null;
-  
-      // Ensure position and size have valid values
-      const position = {
-        x: p.position?.x || '0px',
-        y: p.position?.y || '0px'
-      };
-      
-      const size = {
-        width: p.size?.width || '100px',
-        height: p.size?.height || '40px'
-      };
-  
+    const formattedPlaceholders = doc.placeholders.map(p => {
       if (p.value) {
-        let displayValue = p.value;
-        let style = {
-          position: 'absolute' as const,
-          left: position.x,
-          top: position.y,
-          width: size.width,
-          height: size.height,
-          backgroundColor: 'white'
-        };
-  
-        if (p.type === 'signature') {
-          try {
-            const parsedValue = JSON.parse(p.value);
-            if (parsedValue.text) {
-              displayValue = parsedValue.text;
-              style = {
-                ...style,
-                fontFamily: parsedValue.font || 'dancing-script',
-                fontSize: '48px',
-                color: '#09090b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center' as const
-              };
-            } else if (parsedValue.imageData) {
-              displayValue = parsedValue.imageData;
-              style = {
-                ...style,
-                objectFit: 'contain' as const,
-                transform: `rotate(${parsedValue.rotation || 0}deg) scale(${parsedValue.zoom || 1})`
-              };
-            }
-          } catch {
-            style = {
-              ...style,
-              objectFit: 'contain' as const
-            };
-          }
-        } else if (p.type === 'text' || p.type === 'date') {
-          try {
-            if (p.type === 'text') {
-              const parsedValue = JSON.parse(p.value);
-              displayValue = parsedValue.text || p.value;
-            }
-            style = {
-              ...style,
-              fontSize: '16px',
-              color: '#09090b',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 8px',
-              backgroundColor: 'white',
-              border: 'none',
-              borderRadius: '4px'
-            };
-          } catch {
-            // Use value as-is if not JSON
-          }
-        }
-  
         return {
-          pageNumber: p.pageNumber || 1,
+          position: p.position,
+          size: p.size,
+          pageNumber: p.pageNumber,
           placeholderNumber: p.placeholderNumber,
           type: p.type,
-          value: displayValue,
-          style,
-          showContainer: false
+          assignedTo: p.assignedTo,
+          email: p.email,
+          display: {
+            type: p.type,
+            value: p.value,
+            showContainer: false,
+            style: {
+              fontSize: p.type === 'text' ? '16px' : undefined,
+              width: p.type === 'signature' ? '100%' : undefined,
+              height: p.type === 'signature' ? '100%' : undefined,
+              objectFit: p.type === 'signature' ? 'contain' : undefined,
+              textAlign: 'left',
+              color: '#09090b'
+            }
+          }
+        };
+      } else {
+        return {
+          position: p.position,
+          size: p.size,
+          pageNumber: p.pageNumber,
+          placeholderNumber: p.placeholderNumber,
+          type: p.type,
+          assignedTo: p.assignedTo,
+          email: p.email,
+          display: {
+            type: 'placeholder',
+            content: `${p.type} (${p.assignedTo})`,
+            showContainer: true
+          }
         };
       }
-  
-      return {
-        pageNumber: p.pageNumber || 1,
-        placeholderNumber: p.placeholderNumber,
-        type: 'placeholder',
-        content: `${p.type || 'Unknown'} (${p.assignedTo || 'Unassigned'})`,
-        style: {
-          position: 'absolute' as const,
-          left: position.x,
-          top: position.y,
-          width: size.width,
-          height: size.height,
-          border: '2px dashed rgba(255, 255, 255, 0.3)',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'rgba(255, 255, 255, 0.6)',
-          fontSize: '14px',
-          backgroundColor: 'rgba(0, 0, 0, 0.2)'
-        },
-        showContainer: true
-      };
-    }).filter(Boolean); // Remove any null values
+    });
   
     setSelectedDocument({
       title: doc.title,
-      pages: doc.documentUrl,
+      pages: documentUrls,
       placeholders: formattedPlaceholders
     });
     setShowPreview(true);
@@ -959,8 +895,8 @@ const Dashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedDocuments.map((doc, index) => (
-                      <tr key={doc.documentKey} className="border-b border-white/10">
+                    {paginatedDocuments.map((doc) => (
+                      <tr key={activeTab === "received" ? doc.agreementKey || doc.documentKey : doc.documentKey}  className="border-b border-white/10">
                         {activeTab === "your" ? (
                           <>
                             <td className="py-4 px-4">
@@ -1219,7 +1155,7 @@ const Dashboard: React.FC = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <span className="truncate max-w-[250px]">
-                                  {doc.lastUpdate || 'No recent updates'}
+                                  {getRecipientUpdateText(doc)}
                                 </span>
                               </div>
                             </td>
@@ -1364,9 +1300,9 @@ const Dashboard: React.FC = () => {
                 (activeTab === "your"
                   ? filteredDocuments
                   : filteredReceivedDocuments
-                ).map((doc, index) => (
+                ).map((doc) => (
                   <div
-                    key={doc.documentKey}
+                  key={activeTab === "received" ? doc.agreementKey || doc.documentKey : doc.documentKey} 
                     className="bg-black/40 rounded-xl border border-white/30 p-4"
                   >
                     <div className="flex justify-between items-start mb-4">
@@ -1467,13 +1403,14 @@ const Dashboard: React.FC = () => {
                           {activeTab === "your" ? doc.status : doc.receivedAt || 'Recently'}
                         </div>
                       </div>
-                      <div>
-                        <p className="text-gray-400 mb-2">Recipients</p>
-                        <div className="flex -space-x-2">
-                          {doc.recipients.slice(0, 3).map((recipient, idx) => (
+                      <div className="flex">
+                        {doc.recipients
+                          .slice(0, 3)
+                          .map((recipient, idx) => (
                             <div
                               key={recipient.email}
-                              className="w-8 h-8 rounded-full border-2 border-black overflow-hidden"
+                              className={`w-8 h-8 rounded-full border-2 border-black overflow-hidden ${idx > 0 ? "-ml-3" : ""
+                                }`}
                             >
                               <img
                                 src={recipient.recipientsAvatar}
@@ -1482,22 +1419,20 @@ const Dashboard: React.FC = () => {
                               />
                             </div>
                           ))}
-                          {doc.recipients.length > 3 && (
-                            <div className="w-8 h-8 rounded-full border-2 border-black bg-gray-800 flex items-center justify-center text-xs text-white">
-                              +{doc.recipients.length - 3}
-                            </div>
-                          )}
-                        </div>
+                        {doc.recipients.length > 3 && (
+                          <div className="w-8 h-8 rounded-full border-2 border-black bg-gray-800 flex items-center justify-center text-xs text-white -ml-3">
+                            +{doc.recipients.length - 3}
+                          </div>
+                        )}
                       </div>
                     </div>
-
                     <div className="bg-black/40 rounded-lg p-3">
                       <div className="flex items-center gap-2 text-gray-400">
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm">
-                          {activeTab === "your" ? getRecipientUpdateText(doc) : doc.lastUpdate || 'No recent updates'}
+                          {getRecipientUpdateText(doc)}
                         </span>
                       </div>
                     </div>
