@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/react-signature-canvas": "^1.0.7",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.4.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-rnd": "^10.5.2",
