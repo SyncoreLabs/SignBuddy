@@ -79,7 +79,6 @@ interface UserData {
 type DocumentStatus = "draft" | "viewed" | "completed" | "pending" | "all";
 
 const Dashboard: React.FC = () => {
-  const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -380,7 +379,6 @@ const Dashboard: React.FC = () => {
         tooltipRef.current &&
         !tooltipRef.current.contains(event.target as Node)
       ) {
-        setActiveTooltip(null);
       }
     };
 

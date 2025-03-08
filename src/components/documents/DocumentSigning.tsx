@@ -51,6 +51,14 @@ interface SignaturePopupProps {
   type: "signature" | "date" | "text";
 }
 
+type FontFamilyKey = 'font-dancing-script' | 'font-great-vibes' | 'font-alex-brush' | 
+                    'font-sacramento' | 'font-allura' | 'font-petit-formal';
+
+interface ParsedTextData {
+    text: string;
+    font: FontFamilyKey;
+}
+
 
 const SignaturePopup: React.FC<SignaturePopupProps> = ({
   isOpen,
@@ -567,7 +575,7 @@ const DocumentSigning: React.FC = () => {
 
       const formData = new FormData();
       formData.append('documentKey', agreement.agreementKey);
-      formData.append('senderEmail', userData?.user.email);
+      formData.append('senderEmail', userData.user.email); 
 
       const processedPlaceholders = [];
 
