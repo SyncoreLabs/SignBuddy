@@ -1,4 +1,5 @@
 import React from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import frame58 from '../../assets/images/Frame58.png';
 import createIcon from '../../assets/images/create-icon.png';
@@ -7,8 +8,32 @@ import securityIcon from '../../assets/images/security-icon.png';
 import goalIcon from '../../assets/images/Goal.png';
 import vectorIcon from '../../assets/images/Vector.png';
 
+interface CountData {
+  users: number;
+  documents: number;
+  days: string;
+}
+
 const WhyUs: React.FC = () => {
+  const [counts, setCounts] = useState<CountData | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const response = await fetch('https://server.signbuddy.in/api/v1/getcount');
+        const data = await response.json();
+        if (data.success) {
+          setCounts(data.count);
+        }
+      } catch (error) {
+        console.error('Error fetching counts:', error);
+      }
+    };
+
+    fetchCounts();
+  }, []);
+
   return (
     <>
       <div className="max-w-7xl mx-auto mt-16 mb-16 px-4 py-10">
@@ -95,15 +120,24 @@ const WhyUs: React.FC = () => {
                     Trust us, we don't lie with our<br className="hidden sm:block" /> Numbers
                   </h3>
                   <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-1 max-w-[80%] sm:max-w-[60%]">
-                    <div>
-                      <h4 className="text-3xl sm:text-4xl font-bold mb-1">1300+</h4>
-                      <p className="text-gray-400 text-xs sm:text-xs">Documents Created<br />In 22 Days</p>
-                    </div>
-                    <div>
-                      <h4 className="text-3xl sm:text-4xl font-bold mb-1">9K</h4>
-                      <p className="text-gray-400 text-xs sm:text-xs">User Accounts has<br />been Created</p>
-                    </div>
+                  <div>
+                    <h4 className="text-3xl sm:text-4xl font-bold mb-1">
+                      {counts ? `${counts.documents}+` : '...'}
+                    </h4>
+                    <p className="text-gray-400 text-xs sm:text-xs">
+                      Documents Created<br />
+                      {counts?.days.split('Documents Created In ')[1] || 'Loading...'}
+                    </p>
                   </div>
+                  <div>
+                    <h4 className="text-3xl sm:text-4xl font-bold mb-1">
+                      {counts ? `${counts.users}+` : '...'}
+                    </h4>
+                    <p className="text-gray-400 text-xs sm:text-xs">
+                      User Accounts<br />Created
+                    </p>
+                  </div>
+                </div>
                 </div>
               </div>
           

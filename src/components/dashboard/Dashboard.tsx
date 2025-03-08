@@ -1513,8 +1513,18 @@ const Dashboard: React.FC = () => {
                                 alt="Signature"
                                 className="w-full h-full object-contain"
                               />
+                            ) : placeholder.type === "text" || placeholder.type === "date" ? (
+                              <div className="w-full h-full relative">
+                                {placeholder.value && (
+                                  <img
+                                    src={placeholder.value}
+                                    alt={`${placeholder.type} field`}
+                                    className="w-full h-full object-contain"
+                                  />
+                                )}
+                              </div>
                             ) : (
-                              <span className="text-white text-sm">{placeholder.value}</span>
+                              <span className="text-black text-sm">{placeholder.value}</span>
                             )
                           ) : (
                             <>

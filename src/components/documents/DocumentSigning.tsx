@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import creditsIcon from "../../assets/images/credits-icon.png";
 interface Agreement {
   documentKey: string;
-  agreementKey?: string; 
+  agreementKey?: string;
   title: string;
   imageUrls: string[];
   documentUrl: string[];
@@ -164,7 +164,7 @@ const SignaturePopup: React.FC<SignaturePopupProps> = ({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div ref={popupRef} className="bg-black rounded-lg w-[400px] md:w-[600px] p-2 border border-white/20">
-      
+
         {/* Signature popup content */}
         <div className="flex justify-between mb-4">
           <div className="flex w-full gap-2">
@@ -561,72 +561,110 @@ const DocumentSigning: React.FC = () => {
 
   const handleCompleteDocument = async () => {
     try {
+      setIsLoading(true);
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
-  
+
       const formData = new FormData();
       formData.append('documentKey', agreement.agreementKey);
       formData.append('senderEmail', userData?.user.email);
-  
-      // Process placeholders
+
       const processedPlaceholders = [];
-  
+
       for (const placeholder of agreement.placeholders) {
         const signatureValue = signatureData[placeholder.placeholderNumber];
         if (!signatureValue) continue;
-  
+
+        let imageData = '';
+
+        // Process the placeholder based on type
         if (placeholder.type === 'signature') {
-          let imageData = signatureValue;
-          
+          imageData = signatureValue;
+
           try {
             const parsedData = JSON.parse(signatureValue);
             if (parsedData.text) {
-              // Create canvas for text-based signature
+              // Create canvas with exact placeholder dimensions
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
-              canvas.width = 600;
-              canvas.height = 200;
+
+              // Convert vw units to pixels (assuming 1000px viewport width)
+              const viewportWidth = 1000;
+              const width = Math.round(parseFloat(placeholder.size.width) * viewportWidth / 100);
+              const height = Math.round(parseFloat(placeholder.size.height) * viewportWidth / 100);
+
+              canvas.width = width;
+              canvas.height = height;
+
               if (ctx) {
-                // Make background transparent
                 ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                ctx.font = `48px ${parsedData.font}`;
+                ctx.fillRect(0, 0, width, height);
+
+                const fontFamilyMap = {
+                  'font-dancing-script': 'Dancing Script',
+                  'font-great-vibes': 'Great Vibes',
+                  'font-alex-brush': 'Alex Brush',
+                  'font-sacramento': 'Sacramento',
+                  'font-allura': 'Allura',
+                  'font-petit-formal': 'Petit Formal Script'
+                };
+
+                const fontFamily = fontFamilyMap[parsedData.font] || 'Dancing Script';
+                const fontSize = Math.min(height * 0.8, width * 0.2);
+
+                ctx.font = `${fontSize}px ${fontFamily}`;
                 ctx.fillStyle = 'black';
-                ctx.fillText(parsedData.text, 50, 100);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(parsedData.text, width / 2, height / 2);
+
                 imageData = canvas.toDataURL('image/png');
               }
             } else if (parsedData.imageData) {
-              // Convert uploaded image to PNG with transparent background
               const img = new Image();
               await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
                 img.src = parsedData.imageData;
               });
-  
+
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
-              canvas.width = img.width;
-              canvas.height = img.height;
-  
+
+              // Convert vw units to pixels
+              const viewportWidth = 1000;
+              const width = Math.round(parseFloat(placeholder.size.width) * viewportWidth / 100);
+              const height = Math.round(parseFloat(placeholder.size.height) * viewportWidth / 100);
+
+              canvas.width = width;
+              canvas.height = height;
+
               if (ctx) {
-                // Make background transparent
                 ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Apply rotation and zoom
-                ctx.translate(canvas.width/2, canvas.height/2);
+                ctx.fillRect(0, 0, width, height);
+
+                // Calculate scale to fit while maintaining aspect ratio
+                const scale = Math.min(width / img.width, height / img.height);
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+
+                // Center the image
+                const x = (width - scaledWidth) / 2;
+                const y = (height - scaledHeight) / 2;
+
+                // Apply transformations
+                ctx.translate(width / 2, height / 2);
                 ctx.rotate(parsedData.rotation * Math.PI / 180);
-                ctx.scale(parsedData.zoom, parsedData.zoom);
-                ctx.translate(-canvas.width/2, -canvas.height/2);
-                
-                ctx.drawImage(img, 0, 0);
+                ctx.scale(parsedData.zoom * scale, parsedData.zoom * scale);
+                ctx.translate(-width / 2, -height / 2);
+
+                ctx.drawImage(img, x / parsedData.zoom, y / parsedData.zoom,
+                  scaledWidth / parsedData.zoom, scaledHeight / parsedData.zoom);
                 imageData = canvas.toDataURL('image/png');
               }
             }
           } catch (e) {
-            // If JSON.parse fails, convert the original signature to PNG
+            // Handle drawn signatures
             if (signatureValue.startsWith('data:image')) {
               const img = new Image();
               await new Promise((resolve, reject) => {
@@ -634,60 +672,134 @@ const DocumentSigning: React.FC = () => {
                 img.onerror = reject;
                 img.src = signatureValue;
               });
-  
+
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
-              canvas.width = img.width;
-              canvas.height = img.height;
-  
+
+              // Convert vw units to pixels
+              const viewportWidth = 1000;
+              const width = Math.round(parseFloat(placeholder.size.width) * viewportWidth / 100);
+              const height = Math.round(parseFloat(placeholder.size.height) * viewportWidth / 100);
+
+              canvas.width = width;
+              canvas.height = height;
+
               if (ctx) {
-                // Make background transparent
                 ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0);
+                ctx.fillRect(0, 0, width, height);
+
+                // Scale and center the signature
+                const scale = Math.min(width / img.width, height / img.height) * 0.9;
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                const x = (width - scaledWidth) / 2;
+                const y = (height - scaledHeight) / 2;
+
+                ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
                 imageData = canvas.toDataURL('image/png');
               }
             }
           }
-  
-          // Convert base64 to blob
+
+          const fileName = `signature_${placeholder.placeholderNumber}.png`;
           const base64Response = await fetch(imageData);
           const blob = await base64Response.blob();
-          const fileName = `signature_${placeholder.placeholderNumber}.png`;
-          
-          // Append file separately
           formData.append('file', blob, fileName);
-  
+
           processedPlaceholders.push({
-            type: 'signature',
+            type: 'signature', // Changed from 'sign' to 'signature'
             email: placeholder.email,
-            file: fileName
+            value: fileName
           });
         } else if (placeholder.type === 'text') {
-          let textValue = signatureValue;
-          try {
-            const parsedData = JSON.parse(signatureValue);
-            textValue = parsedData.text || signatureValue;
-          } catch (e) {
-            // If JSON.parse fails, use the original value
+          const viewportWidth = 1000;
+          const width = Math.round(parseFloat(placeholder.size.width) * viewportWidth / 100);
+          const height = Math.round(parseFloat(placeholder.size.height) * viewportWidth / 100);
+
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = width;
+          canvas.height = height;
+
+          if (ctx) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, width, height);
+
+            let textValue = signatureValue;
+            try {
+              const parsedData = JSON.parse(signatureValue);
+              textValue = parsedData.text;
+
+              const fontFamily = 'Arial';
+              const fontSize = Math.min(height * 0.8, width * 0.2);
+
+              ctx.font = `${fontSize}px ${fontFamily}`;
+              ctx.fillStyle = 'black';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(textValue, width / 2, height / 2);
+            } catch (e) {
+              // If parsing fails, render plain text
+              const fontSize = Math.min(height * 0.8, width * 0.2);
+              ctx.font = `${fontSize}px Arial`;
+              ctx.fillStyle = 'black';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(textValue, width / 2, height / 2);
+            }
+
+            imageData = canvas.toDataURL('image/png');
           }
-          
+          const fileName = `text_${placeholder.placeholderNumber}.png`;
+          const base64Response = await fetch(imageData);
+          const blob = await base64Response.blob();
+          formData.append('file', blob, fileName);
+
           processedPlaceholders.push({
             type: 'text',
             email: placeholder.email,
-            value: textValue
+            value: fileName
           });
         } else if (placeholder.type === 'date') {
+          const viewportWidth = 1000;
+          const width = Math.round(parseFloat(placeholder.size.width) * viewportWidth / 100);
+          const height = Math.round(parseFloat(placeholder.size.height) * viewportWidth / 100);
+
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = width;
+          canvas.height = height;
+
+          if (ctx) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, width, height);
+
+            const fontSize = Math.min(height * 0.6, width * 0.15);
+            ctx.font = `${fontSize}px Arial`;
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(signatureValue, width / 2, height / 2);
+
+            imageData = canvas.toDataURL('image/png');
+          }
+          const fileName = `date_${placeholder.placeholderNumber}.png`;
+          const base64Response = await fetch(imageData);
+          const blob = await base64Response.blob();
+          formData.append('file', blob, fileName);
+
           processedPlaceholders.push({
             type: 'date',
             email: placeholder.email,
-            value: signatureValue
+            value: fileName
           });
         }
       }
 
       formData.append('placeholders', JSON.stringify(processedPlaceholders));
 
+      console.log('Processed Placeholders:', processedPlaceholders);
+      
       const response = await fetch('https://server.signbuddy.in/api/v1/agreedocument', {
         method: 'POST',
         headers: {
@@ -696,14 +808,25 @@ const DocumentSigning: React.FC = () => {
         body: formData
       });
 
+      console.log(formData)
+
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to submit signed document');
       }
 
+      const responseData = await response.json();
+      console.log('Success response:', responseData);
+
+      alert('Document signed successfully!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Error submitting signed document:', error);
+      alert('Failed to submit signed document: ' + (error as Error).message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -792,9 +915,21 @@ const DocumentSigning: React.FC = () => {
     const height = parseFloat(placeholder.size.height);
 
     const calculateFontSize = (text: string) => {
-      const baseSize = Math.min(height * 0.4, width * 0.08);
-      const textLength = text?.length || 1;
-      const scaleFactor = Math.min(1, 10 / textLength); // Increased text scaling
+      // Calculate area-based size with improved ratios
+      const areaBasedSize = Math.sqrt(width * height) * 0.25;
+      // Calculate width-based size for long text
+      const widthBasedSize = width / (text?.length || 1) * 0.8;
+      // Calculate height-based size
+      const heightBasedSize = height * 0.6;
+
+      // Take the minimum of all calculations to ensure text fits
+      const baseSize = Math.min(areaBasedSize, widthBasedSize, heightBasedSize);
+
+      // Apply a dynamic scale factor based on text length and container proportions
+      const aspectRatio = width / height;
+      const textLengthFactor = Math.max(0.5, 1 - (text?.length || 1) / 20);
+      const scaleFactor = Math.min(1, textLengthFactor * aspectRatio);
+
       return `${baseSize * scaleFactor}vw`;
     };
 
@@ -938,9 +1073,9 @@ const DocumentSigning: React.FC = () => {
               localStorage.removeItem('documentState');
               localStorage.removeItem('returnToDocument');
               // Use replace to avoid adding to history stack
-              navigate(window.location.pathname, { 
+              navigate(window.location.pathname, {
                 state: { agreement },
-                replace: true 
+                replace: true
               });
               return; // Exit early after navigation
             } catch (e) {
@@ -948,17 +1083,17 @@ const DocumentSigning: React.FC = () => {
             }
           }
           // Only navigate to dashboard if no saved state and no current agreement
-          navigate('/dashboard', { 
+          navigate('/dashboard', {
             state: { error: "No document found to sign" },
             replace: true
           });
         }
       } catch (error) {
         console.error("Authentication error:", error);
-        navigate("/login", { 
-          state: { 
+        navigate("/login", {
+          state: {
             returnUrl: localStorage.getItem('returnToDocument') || window.location.pathname,
-            message: "Please login to access document signing" 
+            message: "Please login to access document signing"
           },
           replace: true
         });
@@ -1008,9 +1143,13 @@ const DocumentSigning: React.FC = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={handleCompleteDocument}
-                className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition-colors"
+                disabled={isLoading}
+                className={`px-4 py-2 ${isLoading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-white hover:bg-gray-100'
+                  } text-black rounded-lg transition-colors`}
               >
-                Completed
+                {isLoading ? 'Processing...' : 'Complete'}
               </button>
               <div className="relative">
                 <button
