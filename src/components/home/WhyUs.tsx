@@ -44,11 +44,8 @@ const WhyUs: React.FC = () => {
               Why us and what<br className="hidden sm:block" />drives us ?
             </h2>
             <p className="text-gray-400 text-sm sm:text-base lg:text-lg mt-2 max-w-[350px] sm:max-w-none">
-              We're committed to making document management simple, secure, and accessible for everyone
+              We're committed to making document management simple, secure, and accessible for everyone.
             </p>
-            <button className="text-blue-500 text-sm sm:text-base lg:text-lg hover:underline">
-              Create your First Document
-            </button>
           </div>
 
           {/* Main Content Grid */}
