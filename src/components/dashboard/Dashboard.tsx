@@ -60,26 +60,6 @@ interface PreviewDocument {
   }[];
 }
 
-interface IncomingAgreement {
-  agreementKey: string;
-  senderEmail: string;
-  imageUrls: string[];
-  title: string;
-  signedDocument: string | null;
-  placeholders: {
-    placeholderNumber: number;
-    position: { x: string; y: string };
-    type: string;
-    size: { width: string; height: string };
-    recipientsAvatar?: string;
-    assignedTo: string;
-    email: string;
-    pageNumber: number;
-  }[];
-  receivedAt: string;
-  status: string;
-}
-
 interface UserData {
   success: boolean;
   user: {

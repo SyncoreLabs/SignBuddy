@@ -43,29 +43,19 @@ export function DocumentViewer({
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-        const touch = e.touches[0];
-        setTouchStartPos({
-            x: touch.clientX,
-            y: touch.clientY
-        });
-    };
-
     const handleTouchEnd = (e: React.TouchEvent, pageIndex: number) => {
         if (!selectedPlaceholderType) return;
-    
+
         const touch = e.changedTouches[0];
         const target = e.currentTarget as HTMLElement;
         const rect = target.getBoundingClientRect();
         const image = target.querySelector('img');
         if (!image) return;
-        
+
         // Calculate percentages relative to the image
         const xPercent = ((touch.clientX - rect.left) / image.offsetWidth) * 100;
         const yPercent = ((touch.clientY - rect.top) / image.offsetHeight) * 100;
-        
+
         onPlaceholderDrop?.(pageIndex, xPercent, yPercent, selectedPlaceholderType);
     };
     return (
@@ -95,12 +85,12 @@ export function DocumentViewer({
                                 const parentImage = document.querySelector(`[data-page-index="${index}"]`) as HTMLImageElement;
                                 const imageWidth = parentImage?.offsetWidth || 800;
                                 const imageHeight = parentImage?.offsetHeight || 1000;
-                                
+
                                 const xPixels = (placeholder.xPercent * imageWidth) / 100;
                                 const yPixels = (placeholder.yPercent * imageHeight) / 100;
                                 const widthPixels = (placeholder.widthPercent * imageWidth) / 100;
                                 const heightPixels = (placeholder.heightPercent * imageHeight) / 100;
-                                
+
                                 return (
                                     <Rnd
                                         key={placeholder.id}
@@ -110,7 +100,7 @@ export function DocumentViewer({
                                             width: widthPixels,
                                             height: heightPixels
                                         }}
-                                        position={{ 
+                                        position={{
                                             x: xPixels,
                                             y: yPixels
                                         }}
@@ -155,7 +145,7 @@ export function DocumentViewer({
                                                 yPercent
                                             });
                                         }}
-                                        onResizeStop={(e, direction, ref, delta, position) => {
+                                        onResizeStop={(_e, _direction, ref) => {
                                             const parentImage = ref
                                                 .closest('.relative')
                                                 ?.querySelector('img');
@@ -163,8 +153,8 @@ export function DocumentViewer({
 
                                             const widthPercent = (ref.offsetWidth / parentImage.offsetWidth) * 100;
                                             const heightPercent = (ref.offsetHeight / parentImage.offsetHeight) * 100;
-                                            const xPercent = (position.x / parentImage.offsetWidth) * 100;
-                                            const yPercent = (position.y / parentImage.offsetHeight) * 100;
+                                            const xPercent = (ref.offsetLeft / parentImage.offsetWidth) * 100;
+                                            const yPercent = (ref.offsetTop / parentImage.offsetHeight) * 100;
 
                                             onUpdatePlaceholder(placeholder.id, {
                                                 widthPercent,

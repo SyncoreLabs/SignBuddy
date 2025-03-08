@@ -411,7 +411,7 @@ const SignaturePopup: React.FC<SignaturePopupProps> = ({
                     <div className="flex flex-col w-full">
                       <div className="relative flex-1 mb-4">
                         <img
-                          src={previewUrl}
+                          src={previewUrl || undefined}
                           alt="Signature preview"
                           className="max-h-[200px] w-full object-contain mb-2 transition-transform"
                           style={{
@@ -1234,7 +1234,7 @@ const DocumentSigning: React.FC = () => {
               className="relative mb-8 bg-white rounded-lg shadow-lg"
             >
               <img
-                src={pageUrl}
+                src={pageUrl || undefined}
                 alt={`Document page ${pageIndex + 1}`}
                 className="w-full h-auto"
               />

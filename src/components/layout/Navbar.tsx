@@ -173,7 +173,7 @@ const Navbar: React.FC<{ isAuthenticated?: boolean }> = ({ isAuthenticated = fal
                 className="flex items-center gap-2 rounded-full hover:bg-black/40"
               >
                 <img
-                  src={userAvatar}
+                  src={userAvatar || undefined}
                   alt="Profile"
                   className="w-9 h-9 rounded-full object-cover"
                 />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import lightningIcon from '../../assets/images/credits-icon.png';
 import infinity from '../../assets/images/infinite.png';
@@ -31,15 +31,8 @@ const Billing = () => {
   usePageTitle('Billing');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const [activeSubscription, setActiveSubscription] = useState<{
-    isActive: boolean;
-    expiryDate?: string;
-    type?: string;
-    credits?: number;
-  }>({ isActive: false });
-  const [creditsHistory, setCreditsHistory] = useState([]);
+  const [creditsHistory, setCreditsHistory] = useState<CreditHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [totalCredits, setTotalCredits] = useState(0);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [billingHistory, setBillingHistory] = useState<BillingHistory[]>([]);
     // Add this where the pagination controls are
@@ -53,7 +46,6 @@ const Billing = () => {
     // Fetch user's subscription status
     const subscriptionStatus = localStorage.getItem('subscriptionStatus');
     if (subscriptionStatus) {
-      setActiveSubscription(JSON.parse(subscriptionStatus));
     }
   }, []);
 
@@ -73,7 +65,6 @@ useLayoutEffect(() => {
 
         const data = await response.json();
         console.log('API Response:', data); // Debug log
-        setTotalCredits(data.credits);
         setCreditsHistory(data.creditsHistory || []);
         setBillingHistory(data.billingHistory || []);
         
@@ -256,7 +247,7 @@ useLayoutEffect(() => {
               {isLoading ? (
                 <div className="text-center py-4">Loading...</div>
               ) : (
-                [...creditsHistory].reverse().map((item, index) => (
+                [...creditsHistory].reverse().map((item) => (
                   <div key={item._id} className="flex items-center justify-between group">
                     <div>
                       <h3 className="text-lg font-medium">

@@ -78,12 +78,11 @@ const Login = () => {
           
           // Render the Google button
           google.accounts.id.renderButton(
-            document.getElementById("googleSignInDiv"),
+            document.getElementById("googleSignInDiv")!,
             { 
               type: "standard",
               theme: "outline",
               size: "large",
-              width: "100%",
               text: "continue_with",
               shape: "rectangular",
               logo_alignment: "center"

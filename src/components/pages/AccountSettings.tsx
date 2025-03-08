@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import { useState, useEffect} from "react";
 import { usePageTitle } from "../hooks/usePageTitle";
 
 interface Avatar {

@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+// Add this interface at the top of your file
+interface EmailTemplate {
+  subject: string;
+  message: string;
+  recipientNames: string[];
+  recipientEmails: string[];
+  documentName: string;
+  recipients: any[];  // You might want to type this more specifically
+  ccRecipients: string[];
+  image: any;  // You might want to type this more specifically
+  placeholderData: any;  // You might want to type this more specifically
+  fileKey: string;
+}
+
 const EmailComposePage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -13,7 +27,7 @@ const EmailComposePage: React.FC = () => {
     fileKey
   } = location.state?.data || {};
   const [ccInput, setCcInput] = useState('');
-  const [emailTemplate, setEmailTemplate] = useState({
+  const [emailTemplate, setEmailTemplate] = useState<EmailTemplate>({
     subject: `Please complete the ${documentName || 'document'}`,
     message: `Hey there,
 
@@ -32,6 +46,11 @@ Please click anywhere below to complete the document.`,
     fileKey: fileKey || ''
   });
 
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
 
   const [userDetails, setUserDetails] = useState({
     name: '',
@@ -43,7 +62,6 @@ Please click anywhere below to complete the document.`,
     const fetchUserData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const authMethod = localStorage.getItem("authMethod");
         const response = await fetch("https://server.signbuddy.in/api/v1/me", {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -133,12 +151,6 @@ Please click anywhere below to complete the document.`,
       console.error("Error sending agreement:", error);
       // Add error handling here (e.g., show error toast)
     }
-  };
-
-  const [image, setimage] = useState('SCP2_developer_agreement');
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
   };
 
   const handleAddCc = (e: React.KeyboardEvent<HTMLInputElement>) => {

@@ -12,7 +12,6 @@ const SignUp = () => {
   const [isEmailVerifying, setIsEmailVerifying] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [error, setError] = useState('');
-  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
 
   const handleSignUpSuccess = (token: string) => {
     localStorage.setItem('token', token);
@@ -109,18 +108,16 @@ const SignUp = () => {
 
           // Render the Google button
           google.accounts.id.renderButton(
-            document.getElementById("googleSignInDiv"),
+            document.getElementById("googleSignInDiv")!,
             { 
               type: "standard",
               theme: "outline",
               size: "large",
-              width: "100%",
               text: "continue_with",
               shape: "rectangular",
               logo_alignment: "center"
             }
           );
-          setIsGoogleLoaded(true);
         } catch (error) {
           console.error('Google Sign-In initialization failed:', error);
           setError('Failed to initialize Google Sign-In');

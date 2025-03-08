@@ -1,6 +1,5 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import pdfIcon from '../../assets/images/PDF.png';
 
 const EmailSuccessPage: React.FC = () => {
     const location = useLocation();
