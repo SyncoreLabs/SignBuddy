@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 
 interface RecentDocument {
   documentKey: string;
+  agreementKey?: string;
   imageUrls?: string[];
   title: string;
   documentUrl: string[];
@@ -462,58 +463,31 @@ const Dashboard: React.FC = () => {
 
   const handlePreviewDocument = (doc: RecentDocument) => {
     const documentUrls = activeTab === "received" ? doc.imageUrls || doc.documentUrl : doc.documentUrl;
-     if (!documentUrls || documentUrls.length === 0) {
-    console.log("No preview available for this document");
-    return;
-  }
-  
+    if (!documentUrls || documentUrls.length === 0) {
+      console.log("No preview available for this document");
+      return;
+    }
+
     // If it's a received document, notify the server
     if (activeTab === "received") {
       notifyDocumentViewed(doc);
     }
-  
-    const formattedPlaceholders = doc.placeholders.map(p => {
-      if (p.value) {
-        return {
-          position: p.position,
-          size: p.size,
-          pageNumber: p.pageNumber,
-          placeholderNumber: p.placeholderNumber,
-          type: p.type,
-          assignedTo: p.assignedTo,
-          email: p.email,
-          display: {
-            type: p.type,
-            value: p.value,
-            showContainer: false,
-            style: {
-              fontSize: p.type === 'text' ? '16px' : undefined,
-              width: p.type === 'signature' ? '100%' : undefined,
-              height: p.type === 'signature' ? '100%' : undefined,
-              objectFit: p.type === 'signature' ? 'contain' : undefined,
-              textAlign: 'left',
-              color: '#09090b'
-            }
-          }
-        };
-      } else {
-        return {
-          position: p.position,
-          size: p.size,
-          pageNumber: p.pageNumber,
-          placeholderNumber: p.placeholderNumber,
-          type: p.type,
-          assignedTo: p.assignedTo,
-          email: p.email,
-          display: {
-            type: 'placeholder',
-            content: `${p.type} (${p.assignedTo})`,
-            showContainer: true
-          }
-        };
-      }
-    });
-  
+
+    const formattedPlaceholders = doc.placeholders.map(p => ({
+      position: p.position,
+      size: p.size,
+      pageNumber: p.pageNumber,
+      placeholderNumber: p.placeholderNumber,
+      type: p.type,
+      assignedTo: p.assignedTo,
+      email: p.email,
+      value: p.value,
+      className: `${!p.value ? `border-2 ${p.type === "signature" ? "border-blue-500" :
+        p.type === "date" ? "border-green-500" :
+          "border-purple-500"
+        } bg-black/80 backdrop-blur-sm` : ""} rounded hover:border-4 transition-colors flex flex-col items-center justify-center overflow-hidden`
+    }));
+
     setSelectedDocument({
       title: doc.title,
       pages: documentUrls,
@@ -896,7 +870,7 @@ const Dashboard: React.FC = () => {
                   </thead>
                   <tbody>
                     {paginatedDocuments.map((doc) => (
-                      <tr key={activeTab === "received" ? doc.agreementKey || doc.documentKey : doc.documentKey}  className="border-b border-white/10">
+                      <tr key={activeTab === "received" ? doc.agreementKey : doc.documentKey} className="border-b border-white/10">
                         {activeTab === "your" ? (
                           <>
                             <td className="py-4 px-4">
@@ -1115,7 +1089,6 @@ const Dashboard: React.FC = () => {
                                     Download
                                   </button>
                                 ) : (
-                                  doc.status.toLowerCase() === "pending" &&
                                   !doc.placeholders
                                     .filter(p => p.email === userData?.user.email)
                                     .every(p => p.value) && (
@@ -1124,7 +1097,7 @@ const Dashboard: React.FC = () => {
                                         if (activeTab === "received") {
                                           notifyDocumentViewed(doc);
                                         }
-                                        navigate(`/sign/${doc.documentKey}`, {
+                                        navigate(`/sign/${doc.agreementKey}`, {
                                           state: {
                                             agreement: {
                                               ...doc,
@@ -1302,7 +1275,7 @@ const Dashboard: React.FC = () => {
                   : filteredReceivedDocuments
                 ).map((doc) => (
                   <div
-                  key={activeTab === "received" ? doc.agreementKey || doc.documentKey : doc.documentKey} 
+                    key={activeTab === "received" ? doc.agreementKey || doc.documentKey : doc.documentKey}
                     className="bg-black/40 rounded-xl border border-white/30 p-4"
                   >
                     <div className="flex justify-between items-start mb-4">
@@ -1351,7 +1324,6 @@ const Dashboard: React.FC = () => {
                               </button>
                             )
                           ) : (
-                            doc.status.toLowerCase() === "pending" &&
                             !doc.placeholders
                               .filter(p => p.email === userData?.user.email)
                               .every(p => p.value) && (
@@ -1360,10 +1332,11 @@ const Dashboard: React.FC = () => {
                                   if (activeTab === "received") {
                                     notifyDocumentViewed(doc);
                                   }
-                                  navigate(`/sign/${doc.documentKey}`, {
+                                  navigate(`/sign/${doc.agreementKey}`, {
                                     state: {
                                       agreement: {
                                         ...doc,
+                                        documentUrl: doc.imageUrls,
                                         placeholders: doc.placeholders.map(p => ({
                                           position: p.position,
                                           size: p.size,
@@ -1501,18 +1474,8 @@ const Dashboard: React.FC = () => {
                 onClick={() => setShowPreview(false)}
                 className="p-1 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <svg
-                  className="w-5 h-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
@@ -1535,14 +1498,42 @@ const Dashboard: React.FC = () => {
                             pointerEvents: "none",
                             transform: "translate(0%, 0%)"
                           }}
-                          className="border-2 border-blue-500 rounded-md bg-blue-500/10"
+                          className={`rounded-md flex items-center justify-center ${placeholder.value
+                            ? "bg-transparent"
+                            : `border-2 bg-black/80 backdrop-blur-sm ${placeholder.type === "signature" ? "border-blue-500" :
+                              placeholder.type === "date" ? "border-green-500" :
+                                "border-purple-500"
+                            }`
+                            }`}
                         >
-                          <div className="absolute top-0 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded-tl-md rounded-br-md whitespace-nowrap">
-                            {placeholder.type}
-                          </div>
-                          <div className="absolute bottom-0 right-0 bg-blue-500 text-white text-xs px-2 py-1 rounded-tr-md rounded-bl-md whitespace-nowrap">
-                            {placeholder.assignedTo}
-                          </div>
+                          {placeholder.value ? (
+                            placeholder.type === "signature" ? (
+                              <img
+                                src={placeholder.value}
+                                alt="Signature"
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              <span className="text-white text-sm">{placeholder.value}</span>
+                            )
+                          ) : (
+                            <>
+                              <div className={`absolute top-0 left-0 text-xs px-2 py-1 rounded-tl-md rounded-br-md whitespace-nowrap ${
+                                placeholder.type === "signature" ? "bg-blue-500" :
+                                placeholder.type === "date" ? "bg-green-500" :
+                                "bg-purple-500"
+                              } text-black`}>
+                                {placeholder.type === "date" && placeholder.value ? placeholder.value : placeholder.type}
+                              </div>
+                              <div className={`absolute bottom-0 right-0 text-xs px-2 py-1 rounded-tr-md rounded-bl-md whitespace-nowrap ${
+                                placeholder.type === "signature" ? "bg-blue-500" :
+                                placeholder.type === "date" ? "bg-green-500" :
+                                "bg-purple-500"
+                              } text-black`}>
+                                {placeholder.type === "text" && placeholder.value ? placeholder.value : placeholder.assignedTo}
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                   </div>

@@ -6,7 +6,9 @@ import { format } from "date-fns";
 import creditsIcon from "../../assets/images/credits-icon.png";
 interface Agreement {
   documentKey: string;
+  agreementKey?: string; 
   title: string;
+  imageUrls: string[];
   documentUrl: string[];
   status: string;
   recipients: Array<{
@@ -563,8 +565,8 @@ const DocumentSigning: React.FC = () => {
       if (!token) throw new Error("No authentication token found");
   
       const formData = new FormData();
-      formData.append('documentKey', agreement.documentKey);
-      formData.append('senderEmail', userData?.user.email || '');
+      formData.append('documentKey', agreement.agreementKey);
+      formData.append('senderEmail', userData?.user.email);
   
       // Process placeholders
       const processedPlaceholders = [];
@@ -780,7 +782,7 @@ const DocumentSigning: React.FC = () => {
   //     "https://signbuddy.s3.ap-south-1.amazonaws.com/images/1b576efd-4fe8-4aac-853f-05543927d700-Use+cases+-+HydPyHack.pdf/1b576efd-4fe8-4aac-853f-05543927d700-06.jpg",
   //     "https://signbuddy.s3.ap-south-1.amazonaws.com/images/1b576efd-4fe8-4aac-853f-05543927d700-Use+cases+-+HydPyHack.pdf/1b576efd-4fe8-4aac-853f-05543927d700-07.jpg", // Replace with your test PDF URL
   //   ];
-  const documentUrls = agreement?.documentUrl || [];
+  const documentUrls = agreement?.imageUrls || [];
 
   const renderInputField = (placeholder: PlaceholderData) => {
     if (placeholder.email !== currentUserEmail) return null;
