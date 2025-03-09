@@ -170,13 +170,11 @@ const Pricing: React.FC = () => {
         );
 
         const orderData = await orderResponse.json();
-        console.log('Server response:', orderData); // Add this line to debug
         
         if (!orderData.order) {
           throw new Error(orderData.message || 'Failed to create order');
         }
 
-        console.log('Order created:', orderData);
   
         if (!orderData.order || !orderData.order.id) {
           throw new Error('Invalid order data received');
@@ -190,7 +188,6 @@ const Pricing: React.FC = () => {
           description: `Purchase ${planType === 'credits' ? `${selectedCredits} credits` : `${isYearly ? 'yearly' : 'monthly'} subscription`}`,
           order_id: orderData.order.id,
           handler: async function (response: any) {
-            console.log('Payment successful:', response);
             try {
               // Updated verification endpoint and request structure
               const verifyResponse = await fetch(
@@ -237,8 +234,7 @@ const Pricing: React.FC = () => {
             }
           }
         };
-  
-        console.log('Initializing Razorpay with options:', options);
+
         // Check if Razorpay is loaded
         if (typeof window.Razorpay === 'undefined') {
           throw new Error('Razorpay SDK not loaded! Please check your internet connection.');
