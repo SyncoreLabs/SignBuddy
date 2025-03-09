@@ -13,6 +13,7 @@ interface RecentDocument {
   title: string;
   documentUrl: string[];
   status: string;
+  senderEmail: string;
   receivedAt: string;
   recipients: {
     email: string;
@@ -142,8 +143,8 @@ const Dashboard: React.FC = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          senderEmail: receivedDoc.recipients[0].email,
-          documentKey: receivedDoc.agreementKey || receivedDoc.documentKey
+          senderEmail: receivedDoc.senderEmail,
+          documentKey: receivedDoc.agreementKey
         }),
       });
 
