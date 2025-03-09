@@ -110,9 +110,10 @@ const Dashboard: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const hasPendingReceivedDocuments = useMemo(() => {
-    return receivedDocuments.some(doc =>
-      doc.status.toLowerCase() === "pending" &&
-      !doc.placeholders.every(p => p.value)
+    return receivedDocuments.some(doc => 
+      doc.placeholders.some(p => 
+        p.email === userData?.user.email && !p.value // Check if user has unsigned placeholders
+      )
     );
   }, [receivedDocuments]);
 
