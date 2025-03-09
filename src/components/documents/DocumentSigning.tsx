@@ -51,14 +51,19 @@ interface SignaturePopupProps {
   type: "signature" | "date" | "text";
 }
 
-type FontFamilyKey = 'font-dancing-script' | 'font-great-vibes' | 'font-alex-brush' | 
-                    'font-sacramento' | 'font-allura' | 'font-petit-formal';
+type FontFamilyKey = 'font-dancing-script' | 'font-great-vibes' | 'font-alex-brush' |
+  'font-sacramento' | 'font-allura' | 'font-petit-formal';
 
 interface ParsedTextData {
-    text: string;
-    font: FontFamilyKey;
+  text: string;
+  font: FontFamilyKey;
 }
 
+interface ParsedImageData {
+  imageData: string;
+  zoom: number;
+  rotation: number;
+}
 
 const SignaturePopup: React.FC<SignaturePopupProps> = ({
   isOpen,
@@ -570,12 +575,14 @@ const DocumentSigning: React.FC = () => {
   const handleCompleteDocument = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No authentication token found");
+    const token = localStorage.getItem("token");
+    if (!token) throw new Error("No authentication token found");
+    if (!userData) throw new Error("User data not found");
+    if (!agreement.agreementKey) throw new Error("Agreement key not found");
 
       const formData = new FormData();
       formData.append('documentKey', agreement.agreementKey);
-      formData.append('senderEmail', userData.user.email); 
+      formData.append('senderEmail', userData.user.email);
 
       const processedPlaceholders = [];
 
@@ -591,7 +598,16 @@ const DocumentSigning: React.FC = () => {
 
           try {
             const parsedData = JSON.parse(signatureValue);
-            if (parsedData.text) {
+            const isImageData = (data: any): data is ParsedImageData => {
+              return 'imageData' in data && 'zoom' in data && 'rotation' in data;
+            };
+        
+            // Type guard function to check if the data is ParsedTextData
+            const isTextData = (data: any): data is ParsedTextData => {
+              return 'text' in data && 'font' in data;
+            };
+        
+            if (isTextData(parsedData)) {
               // Create canvas with exact placeholder dimensions
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
@@ -608,7 +624,7 @@ const DocumentSigning: React.FC = () => {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0)';
                 ctx.fillRect(0, 0, width, height);
 
-                const fontFamilyMap = {
+                const fontFamilyMap: Record<FontFamilyKey, string> = {
                   'font-dancing-script': 'Dancing Script',
                   'font-great-vibes': 'Great Vibes',
                   'font-alex-brush': 'Alex Brush',
@@ -628,7 +644,7 @@ const DocumentSigning: React.FC = () => {
 
                 imageData = canvas.toDataURL('image/png');
               }
-            } else if (parsedData.imageData) {
+            } else if (isImageData(parsedData)) {
               const img = new Image();
               await new Promise((resolve, reject) => {
                 img.onload = resolve;
@@ -807,7 +823,7 @@ const DocumentSigning: React.FC = () => {
       formData.append('placeholders', JSON.stringify(processedPlaceholders));
 
       console.log('Processed Placeholders:', processedPlaceholders);
-      
+
       const response = await fetch('https://server.signbuddy.in/api/v1/agreedocument', {
         method: 'POST',
         headers: {
@@ -1153,8 +1169,8 @@ const DocumentSigning: React.FC = () => {
                 onClick={handleCompleteDocument}
                 disabled={isLoading}
                 className={`px-4 py-2 ${isLoading
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-white hover:bg-gray-100'
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-white hover:bg-gray-100'
                   } text-black rounded-lg transition-colors`}
               >
                 {isLoading ? 'Processing...' : 'Complete'}

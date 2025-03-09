@@ -57,7 +57,7 @@ interface LocationState {
 const DocumentRecipients: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { documentUrls = [], documentTitle = "", originalName } =
+  const { documentUrls = [], documentTitle = ""} =
     (location.state as LocationState) || {};
   // Group all state declarations together at the top
   const [showToast, setShowToast] = useState(false);
@@ -72,7 +72,7 @@ const DocumentRecipients: React.FC = () => {
     x: number;
     y: number;
   } | null>(null);
-  const [previewPosition, setPreviewPosition] = useState<{
+  const [previewPosition] = useState<{
     x: number;
     y: number;
   } | null>(null);
@@ -80,8 +80,6 @@ const DocumentRecipients: React.FC = () => {
     x: number;
     y: number;
   } | null>(null); // Track mouse position
-  const [containerDimensions, setContainerDimensions] =
-    useState<DOMRect | null>(null);
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [placeholderIdCounter, setPlaceholderIdCounter] = useState(0);
   const [documentName, setDocumentName] = useState<string>(""); // State for document name
@@ -89,7 +87,6 @@ const DocumentRecipients: React.FC = () => {
   const [toastDuration, setToastDuration] = useState<number>(5000); // State for toast duration
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [isFabOpen, setIsFabOpen] = useState(false);
-  const [isProceedValidated, setIsProceedValidated] = useState(false);
   const isMobileDevice = () => {
     return /Mobi|Android/i.test(navigator.userAgent);
   };
@@ -98,11 +95,10 @@ const DocumentRecipients: React.FC = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const state = location.state as LocationState;
   const [documentPages, setDocumentPages] = useState<string[]>([]);
-  const [emailSubject, setEmailSubject] = useState("");
-const [emailMessage, setEmailMessage] = useState("");
-const [ccEmails, setCcEmails] = useState<string[]>([]);
-const [bccEmails, setBccEmails] = useState<string[]>([]);
-const [fileKey, setfileKey] = useState<string>("");
+  const [emailSubject] = useState("");
+const [emailMessage] = useState("");
+const [ccEmails] = useState<string[]>([]);
+const [bccEmails] = useState<string[]>([]);
 
   const getAvailableSigners = () => {
     const validRecipients = recipients.filter(
@@ -140,7 +136,6 @@ const handleLogout = () => {
     }
     // Store the document key
     if (state.fileKey) {
-      setfileKey(state.fileKey);
       console.log("Document key set:", state.fileKey); // Debug log
     } else {
       console.error("Document key missing from state:", state); // Debug log
@@ -243,7 +238,6 @@ const handleLogout = () => {
   useEffect(() => {
     const updateDimensions = () => {
       if (previewRef.current) {
-        setContainerDimensions(previewRef.current.getBoundingClientRect());
       }
     };
 
@@ -489,7 +483,6 @@ const handleLogout = () => {
       return;
     }
     setHasProceeded(true);
-    setIsProceedValidated(true); // Set validation state to true
     previewRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 

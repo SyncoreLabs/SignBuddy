@@ -13,6 +13,7 @@ interface RecentDocument {
   title: string;
   documentUrl: string[];
   status: string;
+  receivedAt: string;
   recipients: {
     email: string;
     name: string;
@@ -82,7 +83,6 @@ const Dashboard: React.FC = () => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [statusFilter, setStatusFilter] = useState<DocumentStatus[]>([]);
   const [showPreview, setShowPreview] = useState(false);
@@ -105,7 +105,7 @@ const Dashboard: React.FC = () => {
     const savedTab = localStorage.getItem("dashboardActiveTab");
     return savedTab === "your" || savedTab === "received" ? savedTab : "your";
   });
-  const [completedSignings, setCompletedSignings] = useState<string[]>(() => {
+  const [completedSignings] = useState<string[]>(() => {
     const saved = localStorage.getItem("completedSignings");
     return saved ? JSON.parse(saved) : [];
   });
@@ -219,12 +219,6 @@ const Dashboard: React.FC = () => {
     activeTab === "your" ? filteredDocuments : filteredReceivedDocuments
   );
 
-  const PaginationControls = ({ totalDocuments }: { totalDocuments: number }) => {
-    const totalPages = Math.ceil(totalDocuments / documentsPerPage);
-
-
-  };
-
   const truncateText = (text: string | undefined, maxLength: number = 30) => {
     if (!text) return ""; // Return empty string if text is undefined or null
     return text.length > maxLength
@@ -321,7 +315,6 @@ const Dashboard: React.FC = () => {
       } catch (error) {
         console.error("Error fetching documents:", error);
       } finally {
-        setLoading(false);
       }
     };
 
@@ -352,7 +345,6 @@ const Dashboard: React.FC = () => {
       } catch (error) {
         console.error("Error fetching user data:", error);
       } finally {
-        setLoading(false);
       }
     };
 
@@ -1115,13 +1107,6 @@ const Dashboard: React.FC = () => {
                       </tr>
                     ))}
                   </tbody>
-                  <PaginationControls
-                    totalDocuments={
-                      activeTab === "your"
-                        ? filteredDocuments.length
-                        : filteredReceivedDocuments.length
-                    }
-                  />
                 </table>
               )}
             </div>
