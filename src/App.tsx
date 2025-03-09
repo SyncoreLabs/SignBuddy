@@ -24,6 +24,7 @@ import ReportIssue from './pages/ReportIssue';
 import AboutUs from './pages/AboutUs';
 import Contact from './pages/Contact';
 import ForgotPassword from './components/pages/ForgotPassword';
+import RefundPolicy from './components/policies/RefundPolicy';
 
 function App() {
   return (
@@ -137,6 +138,15 @@ function App() {
           isAuthenticated={localStorage.getItem('isAuthenticated') === 'true'}
         >
           <Contact />
+        </Layout>
+      } />
+      <Route path="/refundpolicy" element={
+        <Layout
+          showNavbar={true}
+          showFooter={true}
+          isAuthenticated={localStorage.getItem('isAuthenticated') === 'true'}
+        >
+          <RefundPolicy />
         </Layout>
       } />
 

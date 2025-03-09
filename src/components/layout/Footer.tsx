@@ -50,6 +50,7 @@ const Footer: React.FC = () => {
               <ul className="space-y-2">
                 <li><a href="/privacypolicy" className="text-gray-400 hover:text-white">Privacy policy</a></li>
                 <li><a href="/termsandconditions" className="text-gray-400 hover:text-white">Terms & Conditions</a></li>
+                <li><a href="/refundpolicy" className="text-gray-400 hover:text-white">Refund Policy</a></li>
                 <li><a href="/securitymeasures" className="text-gray-400 hover:text-white">Security Measures</a></li>
                 <li><a href="/compliance" className="text-gray-400 hover:text-white">Compliance</a></li>
               </ul>
