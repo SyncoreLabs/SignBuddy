@@ -183,7 +183,7 @@ const Pricing: React.FC = () => {
         }
 
         const options = {
-          key: "rzp_test_7Y68xAGGwsGCBF",
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
           amount: orderData.order.amount,
           currency: orderData.order.currency || 'INR',
           name: "SignBuddy",
