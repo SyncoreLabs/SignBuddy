@@ -8,14 +8,12 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
 dist-ssr
 *.local
 
 # Compiled JavaScript files
 src/**/*.js
 src/**/*.js.map
-dist/
 
 # Editor directories and files
 .vscode/*

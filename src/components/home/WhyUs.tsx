@@ -122,8 +122,7 @@ const WhyUs: React.FC = () => {
                       {counts ? `${counts.documents}+` : '...'}
                     </h4>
                     <p className="text-gray-400 text-xs sm:text-xs">
-                      Documents Created<br />
-                      {counts?.days.split('Documents Created In ')[1] || 'Loading...'}
+                      {counts?.days}
                     </p>
                   </div>
                   <div>
