@@ -16,6 +16,7 @@ const Layout: React.FC<LayoutProps> = ({
   isAuthenticated: initialAuthState = false 
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(initialAuthState);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   useEffect(() => {
     const verifyAuth = async () => {
@@ -37,6 +38,7 @@ const Layout: React.FC<LayoutProps> = ({
           if (data.user) {
             setIsAuthenticated(true);
             localStorage.setItem('isAuthenticated', 'true');
+            setForceUpdate(prev => prev + 1);
           } else {
             setIsAuthenticated(false);
             localStorage.removeItem('isAuthenticated');
@@ -53,12 +55,12 @@ const Layout: React.FC<LayoutProps> = ({
     };
 
     verifyAuth();
-  }, []);
+  }, [localStorage.getItem('token')]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0A0A0A]">
-      {showNavbar && <Navbar isAuthenticated={isAuthenticated} />}
-      <main className="flex-grow">
+    <div className="min-h-screen flex flex-col bg-black">
+      {showNavbar && <Navbar isAuthenticated={isAuthenticated} key={forceUpdate} />}
+      <main className="flex-grow overflow-y-auto">
         {children}
       </main>
       {showFooter && <Footer />}

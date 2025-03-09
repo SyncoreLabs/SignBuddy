@@ -41,7 +41,7 @@ const WhyUs: React.FC = () => {
           {/* Top Section */}
           <div>
             <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold">
-              Why us and what<br className="hidden sm:block" />drives us ?
+              Why us and what <br className="hidden sm:block" />drives us ?
             </h2>
             <p className="text-gray-400 text-sm sm:text-base lg:text-lg mt-2 max-w-[350px] sm:max-w-none">
               We're committed to making document management simple, secure, and accessible for everyone.
@@ -104,7 +104,7 @@ const WhyUs: React.FC = () => {
               {/* Stats Box */}
               <div className="bg-black/40 rounded-lg p-6 border border-white/30 relative overflow-hidden h-[250px]">
                 {/* Goal image */}
-                <div className="absolute top-[45%] right-[-10%] w-48 h-48">
+                <div className="absolute top-[55%] right-[-10%] w-48 h-48">
                   <img 
                     src={goalIcon} 
                     alt="Goal" 
@@ -138,7 +138,7 @@ const WhyUs: React.FC = () => {
               </div>
           
               {/* CTA Box */}
-              <div className="bg-black/40 rounded-lg p-4 sm:p-6 border border-white/30 h-[200px] sm:h-[250px]">
+              <div className="bg-black/40 rounded-lg p-4 sm:p-6 border border-white/30 h-[235px] sm:h-[250px]">
                 <h3 className="text-lg sm:text-2xl font-bold mb-2">Upload your document with simple steps, and let us handle the headache</h3>
                 <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-4">Upload, sign, and manage your documents effortlessly with our streamlined digital platform</p>
                 <button 

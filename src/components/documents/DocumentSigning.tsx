@@ -11,6 +11,7 @@ interface Agreement {
   imageUrls: string[];
   documentUrl: string[];
   status: string;
+  senderEmail: string;
   recipients: Array<{
     email: string;
     name: string;
@@ -582,7 +583,7 @@ const DocumentSigning: React.FC = () => {
 
       const formData = new FormData();
       formData.append('documentKey', agreement.agreementKey);
-      formData.append('senderEmail', userData.user.email);
+      formData.append('senderEmail', agreement.senderEmail);
 
       const processedPlaceholders = [];
 
