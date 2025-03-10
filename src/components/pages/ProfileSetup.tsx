@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useNavigate } from 'react-router-dom';
+import Toast from '../documents/Toast';
 
 interface Avatar {
   key: string;
@@ -17,6 +18,19 @@ const ProfileSetup = () => {
 
   const avatarsPerPage = 10;
   const totalPages = Math.ceil((avatars.length - 1) / avatarsPerPage); // -1 to exclude the first item
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'warning' | 'error';
+    visible: boolean;
+  }>({ message: '', type: 'success', visible: false });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
+    setToast({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
   const navigate = useNavigate();
 
@@ -30,6 +44,7 @@ const ProfileSetup = () => {
         setAvatars(data.filter((avatar: Avatar) => avatar.key !== 'avatars/'));
       } catch (error) {
         console.error('Error fetching avatars:', error);
+        showToast('Failed to load avatars. Please refresh the page.', 'error');
       } finally {
         setIsLoading(false);
       }
@@ -40,6 +55,17 @@ const ProfileSetup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedAvatar || !username) {
+      showToast('Please select an avatar and enter a username', 'warning');
+      return;
+    }
+  
+    if (username.length < 3) {
+      showToast('Username must be at least 3 characters long', 'warning');
+      return;
+    }
+
     if (selectedAvatar && username) {
       try {
         const token = localStorage.getItem('token');
@@ -61,15 +87,30 @@ const ProfileSetup = () => {
 
         // Set the hasCompletedSetup flag
         localStorage.setItem('hasCompletedSetup', 'true');
+        showToast('Profile setup completed successfully!', 'success');
         navigate('/dashboard');
       } catch (error) {
         console.error('Error updating profile:', error);
+        showToast('Failed to update profile. Please try again.', 'error');
       }
     }
   };
 
   return (
     <div className="min-h-screen flex justify-center lg:justify-start">
+      {toast.visible && (
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={hideToast}
+        duration={5000}
+        className={
+          toast.type === 'success' ? 'bg-green-500' :
+          toast.type === 'warning' ? 'bg-yellow-500' :
+          'bg-red-500'
+        }
+      />
+    )}
       {/* Left Section with Illustration */}
       <div className="hidden lg:flex fixed left-0 w-1/2 h-full bg-[#18181B] p-12 flex-col justify-between">
         <div className="max-w-[720px] ml-auto h-full flex flex-col justify-between">
