@@ -145,7 +145,7 @@ export function DocumentViewer({
                                                 yPercent
                                             });
                                         }}
-                                        onResizeStop={(_e, _direction, ref) => {
+                                        onResizeStop={(_e, _direction, ref, _delta) => {
                                             const parentImage = ref
                                                 .closest('.relative')
                                                 ?.querySelector('img');
@@ -153,14 +153,11 @@ export function DocumentViewer({
 
                                             const widthPercent = (ref.offsetWidth / parentImage.offsetWidth) * 100;
                                             const heightPercent = (ref.offsetHeight / parentImage.offsetHeight) * 100;
-                                            const xPercent = (ref.offsetLeft / parentImage.offsetWidth) * 100;
-                                            const yPercent = (ref.offsetTop / parentImage.offsetHeight) * 100;
 
+                                            // Keep the original position (xPercent and yPercent) from the placeholder
                                             onUpdatePlaceholder(placeholder.id, {
                                                 widthPercent,
-                                                heightPercent,
-                                                xPercent,
-                                                yPercent
+                                                heightPercent
                                             });
                                         }}
                                         resizeHandleStyles={{
