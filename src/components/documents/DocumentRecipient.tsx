@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import creditsIcon from "../../assets/images/credits-icon.png";
-import Toast from "./Toast";
+import Toast from '../documents/Toast';
 import { DocumentViewer } from "./DocumentViewer"; // Import the DocumentViewer component
 
 interface Placeholder {
@@ -60,7 +60,6 @@ const DocumentRecipients: React.FC = () => {
   const { documentUrls = [], documentTitle = ""} =
     (location.state as LocationState) || {};
   // Group all state declarations together at the top
-  const [showToast, setShowToast] = useState(false);
   const [isSignatory, setIsSignatory] = useState(false);
   const [recipients, setRecipients] = useState([{ name: "", email: "" }]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -83,8 +82,6 @@ const DocumentRecipients: React.FC = () => {
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [placeholderIdCounter, setPlaceholderIdCounter] = useState(0);
   const [documentName, setDocumentName] = useState<string>(""); // State for document name
-  const [toastMessage, setToastMessage] = useState<string>(""); // State for toast message
-  const [toastDuration, setToastDuration] = useState<number>(5000); // State for toast duration
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [isFabOpen, setIsFabOpen] = useState(false);
   const isMobileDevice = () => {
@@ -99,6 +96,15 @@ const DocumentRecipients: React.FC = () => {
 const [emailMessage] = useState("");
 const [ccEmails] = useState<string[]>([]);
 const [bccEmails] = useState<string[]>([]);
+const [toast, setToast] = useState<{
+  message: string;
+  type: 'success' | 'warning' | 'error';
+  visible: boolean;
+}>({ message: '', type: 'success', visible: false });
+
+const hideToast = () => {
+  setToast(prev => ({ ...prev, visible: false }));
+};
 
   const getAvailableSigners = () => {
     const validRecipients = recipients.filter(
@@ -392,11 +398,6 @@ const handleLogout = () => {
 
   const handleContextMenuSelect = (type: "signature" | "date" | "text") => {
     if (!selectedUser) {
-      setToastMessage(
-        "Please select a person before choosing a placeholder type."
-      );
-      setToastDuration(5000);
-      setShowToast(true);
       return;
     }
 
@@ -475,11 +476,6 @@ const handleLogout = () => {
 
   const handleProceed = (): void => {
     if (!isSignatory && !areAllFieldsValid(recipients)) {
-      setToastMessage(
-        "Please ensure the required details are filled before proceeding."
-      );
-      setToastDuration(5000); // Set duration for this specific toast
-      setShowToast(true);
       return;
     }
     setHasProceeded(true);
@@ -519,33 +515,23 @@ const handleLogout = () => {
        const fileKey = location.state?.fileKey;
       // Use the stored documentKey instead of accessing location.state directly
       if (!fileKey) {
-        setToastMessage("Document key is missing");
-        setShowToast(true);
         console.error("Document key is missing. Current state:", { fileKey, locationState: location.state });
         return;
       }
       
       // Validate required data
       if (!documentName && !documentTitle) {
-        setToastMessage("Document name is missing");
-        setShowToast(true);
         return;
       }
 
       if (!documentUrls || documentUrls.length === 0) {
-        setToastMessage("Document pages are missing");
-        setShowToast(true);
         return;
       }
 
       if (!fileKey) {
-        setToastMessage("Document key is missing");
-        setShowToast(true);
         return;
       }
       if (isSignatory && (!userData?.user.email || !userData?.user.userName)) {
-        setToastMessage("Your user data is not properly loaded. Please refresh the page.");
-        setShowToast(true);
         return;
       }
 
@@ -561,8 +547,6 @@ const handleLogout = () => {
 
     // Validate that all recipients have valid data
     if (allRecipients.some(r => !r.name || !r.email || !isValidEmail(r.email))) {
-      setToastMessage("All recipients must have valid names and email addresses");
-      setShowToast(true);
       return;
     }
 
@@ -601,8 +585,6 @@ const handleLogout = () => {
       });
     } catch (error) {
       console.error("Error in emailing process:", error);
-      setToastMessage("An error occurred while preparing the email");
-      setShowToast(true);
     }
   };
 
@@ -1259,11 +1241,17 @@ const handleLogout = () => {
           </div>
         </div>
       </div>
-      {showToast && (
+      {toast.visible && (
         <Toast
-          message={toastMessage}
-          onClose={() => setShowToast(false)}
-          duration={toastDuration}
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={5000}
+          className={
+            toast.type === 'success' ? 'bg-green-500' :
+            toast.type === 'warning' ? 'bg-yellow-500' :
+            'bg-red-500'
+          }
         />
       )}
     </>

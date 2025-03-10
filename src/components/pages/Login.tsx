@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useNavigate } from 'react-router-dom';
+import Toast from '../documents/Toast';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,10 +10,24 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'warning' | 'error';
+    visible: boolean;
+  }>({ message: '', type: 'success', visible: false });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
+    setToast({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
   const handleLoginSuccess = (token: string, navigationUrl?: string) => {
     localStorage.setItem('token', token);
     localStorage.setItem('isAuthenticated', 'true');
+    showToast('Login successful!', 'success');
     
     // Check for saved document state
     const savedDocumentState = localStorage.getItem('documentState');
@@ -47,6 +62,7 @@ const Login = () => {
       const data = await serverResponse.json();
       if (data.jwtToken) {
         handleLoginSuccess(data.jwtToken, data.message?.navigationUrl);
+        showToast('Successfully logged in with Google!', 'success');
       }
       if (data.jwtToken) {
         localStorage.setItem('token', data.jwtToken);
@@ -62,6 +78,7 @@ const Login = () => {
       
     } catch (err) {
       setError('Google login failed. Please try again.');
+      showToast('Google login failed. Please try again.', 'error');
     }
   };
 
@@ -91,6 +108,7 @@ const Login = () => {
         } catch (error) {
           console.error('Google Sign-In initialization failed:', error);
           setError('Failed to initialize Google Sign-In');
+          showToast('Failed to initialize Google Sign-In. Please try again later.', 'error');
         }
       }
     };
@@ -109,9 +127,20 @@ const Login = () => {
     if (step === 1) {
       if (!email) {
         setError('Please enter your email');
+        showToast('Please enter your email', 'warning');
+        return;
+      }
+      if (!email.includes('@')) {
+        setError('Please enter a valid email');
+        showToast('Please enter a valid email', 'warning');
         return;
       }
       setStep(2);
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password');
+      showToast('Please enter your password', 'warning');
       return;
     }
 
@@ -143,6 +172,7 @@ const Login = () => {
 
     } catch (err) {
       setError('Login failed. Please try again.');
+      showToast('Login failed. Please check your credentials and try again.', 'error');
       setStep(1);
       setPassword('');
     }
@@ -150,6 +180,19 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex justify-center lg:justify-start">
+      {toast.visible && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={5000}
+          className={
+            toast.type === 'success' ? 'bg-green-500' :
+            toast.type === 'warning' ? 'bg-yellow-500' :
+            'bg-red-500'
+          }
+        />
+      )}
       {/* Left Section with Illustration */}
       <div className="hidden lg:flex fixed left-0 w-1/2 h-full bg-[#18181B] p-12 flex-col justify-between">
         <div className="max-w-[720px] ml-auto h-full flex flex-col justify-between">

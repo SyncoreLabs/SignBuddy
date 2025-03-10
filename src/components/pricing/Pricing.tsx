@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import lightningIcon from '../../assets/images/credits-icon.png';
+import Toast from '../documents/Toast';
 
 declare global {
   interface Window {
@@ -35,6 +36,19 @@ const Pricing: React.FC = () => {
     price: string;
     credits?: number;
   } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'warning' | 'error';
+    visible: boolean;
+  }>({ message: '', type: 'success', visible: false });
+
+  const showToast = (message: string, type: 'success' | 'warning' | 'error') => {
+    setToast({ message, type, visible: true });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     const fetchSubscriptionStatus = async () => {
@@ -61,6 +75,7 @@ const Pricing: React.FC = () => {
               expiryDate: data.subscription.endDate,
               type: data.subscription.type
             });
+            showToast('Active subscription found', 'success');
           } else {
             setActiveSubscription({ isActive: false });
           }
@@ -70,6 +85,7 @@ const Pricing: React.FC = () => {
       } catch (error) {
         console.error('Error fetching subscription status:', error);
         setActiveSubscription({ isActive: false });
+        showToast('Failed to fetch subscription status', 'error');
       }
     };
   
@@ -102,9 +118,12 @@ const Pricing: React.FC = () => {
               name: data.user.userName || '',
               email: data.user.email || ''
             }));
+          } else {
+            showToast('Failed to load user details', 'error');
           }
         } catch (error) {
           console.error('Error fetching user details:', error);
+          showToast('Unable to fetch user information', 'error');
         }
       };
 
@@ -117,17 +136,18 @@ const Pricing: React.FC = () => {
       e.preventDefault();
       const token = localStorage.getItem("token");
       if (!token) {
-        console.error('No token found');
+        showToast('Please log in to continue', 'warning');
         return;
       }
     
       if (!userDetails.name || !userDetails.email || !userDetails.contact) {
-        alert('Please fill in all fields');
+        showToast('Please fill in all required fields', 'warning');
         return;
       }
     
       // Add check for Razorpay script
       if (typeof window.Razorpay === 'undefined') {
+        showToast('Payment system is loading. Please wait...', 'warning');
         // Try to load the script dynamically if not present
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -172,6 +192,7 @@ const Pricing: React.FC = () => {
         const orderData = await orderResponse.json();
         
         if (!orderData.order) {
+          showToast(orderData.message || 'Failed to create payment order', 'error');
           throw new Error(orderData.message || 'Failed to create order');
         }
 
@@ -213,7 +234,7 @@ const Pricing: React.FC = () => {
                 throw new Error(verifyData.message || 'Payment verification failed');
               }
               
-              alert('Payment successful!');
+              showToast('Payment verified successfully!', 'success');
               onClose();
             } catch (error) {
               console.error('Payment verification error:', error);
@@ -231,6 +252,7 @@ const Pricing: React.FC = () => {
           modal: {
             ondismiss: function() {
               console.log('Payment window closed');
+              showToast('Payment cancelled', 'warning');
             }
           }
         };
@@ -246,12 +268,13 @@ const Pricing: React.FC = () => {
           razorpay.open();
         } catch (error) {
           console.error('Razorpay initialization error:', error);
-          alert('Failed to initialize payment. Please try again.');
+          showToast('Failed to initialize payment system. Please try again.', 'error');
         }
+        showToast('Payment successful! Your plan is now active.', 'success');
+      onClose();
       } catch (error) {
         console.error('Error in payment process:', error);
-        alert(error instanceof Error ? error.message : 'Failed to initialize payment. Please try again.');
-      }
+        showToast(error instanceof Error ? error.message : 'Payment failed. Please try again.', 'error');      }
     };
 
     return (
@@ -335,8 +358,12 @@ const Pricing: React.FC = () => {
         if (data.success && data.plans) {
           setPlans(data.plans);
         }
+        else {
+          showToast('Failed to load pricing plans', 'error');
+        }
       } catch (error) {
         console.error('Error fetching plans:', error);
+        showToast('Unable to load pricing information', 'error');
       } finally {
         setIsLoading(false);
       }
@@ -363,11 +390,13 @@ const Pricing: React.FC = () => {
       <button
         onClick={() => {
           if (!token) {
+            showToast('Please sign up to continue', 'warning');
             navigate('/signup');
             return;
           }
           // Prevent subscription purchase if already subscribed
           if (!isCreditsTab && hasActiveSubscription) {
+            showToast('You already have an active subscription', 'warning');
             return;
           }
           setSelectedPlan({
@@ -513,6 +542,19 @@ const Pricing: React.FC = () => {
 
   return (
     <div className="bg-black min-h-screen">
+      {toast.visible && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={5000}
+          className={
+            toast.type === 'success' ? 'bg-green-500' :
+            toast.type === 'warning' ? 'bg-yellow-500' :
+            'bg-red-500'
+          }
+        />
+      )}
       {isPaymentPopupOpen && selectedPlan && (
         <PaymentPopup
           isOpen={isPaymentPopupOpen}
