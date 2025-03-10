@@ -104,7 +104,7 @@ const ProfileSetup = () => {
                           key={avatar.key}
                           type="button"
                           onClick={() => setSelectedAvatar(avatar.url)}
-                          className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 ${selectedAvatar === avatar.url ? 'border-white' : 'border-transparent'
+                          className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 ${selectedAvatar === avatar.url ? 'border-blue-500' : 'border-transparent'
                             }`}
                         >
                           <img

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useNavigate } from 'react-router-dom';
+import Toast from '../documents/Toast';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -12,6 +13,20 @@ const SignUp = () => {
   const [isEmailVerifying, setIsEmailVerifying] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [error, setError] = useState('');
+
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'warning' | 'error';
+    visible: boolean;
+  }>({ message: '', type: 'success', visible: false });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
+    setToast({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
   const handleSignUpSuccess = (token: string) => {
     localStorage.setItem('token', token);
@@ -33,6 +48,10 @@ const SignUp = () => {
   };
 
   const handleVerifyEmail = async () => {
+    if (!email.includes('@')) {
+      showToast('Please enter a valid email address', 'warning');
+      return;
+    }
     try {
       setIsEmailVerifying(true);
       setError('');
@@ -50,8 +69,10 @@ const SignUp = () => {
       }
 
       setIsEmailVerified(true);
+      showToast('OTP sent successfully!', 'success');
     } catch (err) {
       setError('Failed to verify email. Please try again.');
+      showToast('Failed to send OTP. Please try again.', 'error');
     } finally {
       setIsEmailVerifying(false);
     }
@@ -92,6 +113,7 @@ const SignUp = () => {
       }
     } catch (err) {
       setError('Google signup failed. Please try again.');
+      showToast('Google signup failed. Please try again.', 'error');
     }
   };
 
@@ -121,6 +143,7 @@ const SignUp = () => {
         } catch (error) {
           console.error('Google Sign-In initialization failed:', error);
           setError('Failed to initialize Google Sign-In');
+          showToast('Failed to initialize Google Sign-In. Please try again later.', 'error');
         }
       }
     };
@@ -135,6 +158,16 @@ const SignUp = () => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!email || !password || !otp) {
+      showToast('Please fill in all fields', 'warning');
+      return;
+    }
+
+    if (password.length < 6) {
+      showToast('Password must be at least 6 characters long', 'warning');
+      return;
+    }
 
     try {
       setError('');
@@ -154,6 +187,7 @@ const SignUp = () => {
       const data = await response.json();
       if (data.token) {
         handleSignUpSuccess(data.token);
+        showToast('Successfully signed up!', 'success');
       }
 
       if (data.jwtToken) {
@@ -173,6 +207,7 @@ const SignUp = () => {
       
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
+      showToast(err.message || 'Registration failed. Please try again.', 'error');
     }
   };
 
@@ -194,6 +229,19 @@ const SignUp = () => {
 
       {/* Right Section with Form */}
       <div className="flex-1 flex flex-col px-4 sm:px-6 lg:ml-[50%] lg:px-20 xl:px-24">
+      {toast.visible && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={5000}
+          className={
+            toast.type === 'success' ? 'bg-green-500' :
+            toast.type === 'warning' ? 'bg-yellow-500' :
+            'bg-red-500'
+          }
+        />
+      )}
         <div className="max-w-[720px] h-full flex flex-col">
           <div className="flex justify-end pt-8 pr-4">
             <a href="/login" className="text-sm text-gray-600">

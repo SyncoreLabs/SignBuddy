@@ -102,6 +102,10 @@ const [toast, setToast] = useState<{
   visible: boolean;
 }>({ message: '', type: 'success', visible: false });
 
+const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
+  setToast({ visible: true, message, type });
+};
+
 const hideToast = () => {
   setToast(prev => ({ ...prev, visible: false }));
 };
@@ -511,6 +515,10 @@ const handleLogout = () => {
 
   const handleEmailing = async () => {
     try {
+      if (!placeholders || placeholders.length === 0) {
+        showToast('Please add at least one placeholder before proceeding', 'warning');
+        return;
+      }
        // Get fileKey from location state
        const fileKey = location.state?.fileKey;
       // Use the stored documentKey instead of accessing location.state directly
